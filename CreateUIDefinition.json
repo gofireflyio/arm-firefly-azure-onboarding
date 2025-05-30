@@ -1,0 +1,182 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "basics": [
+      {
+        "name": "projectDetailsInfo",
+        "type": "Microsoft.Common.InfoBox",
+        "visible": true,
+        "options": {
+          "icon": "Info",
+          "text": "The selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
+        }
+      },
+      {
+        "name": "location",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Location",
+        "defaultValue": "global",
+        "toolTip": "Resources location",
+        "visible": false
+      },
+      {
+        "name": "armio",
+        "type": "Microsoft.Solutions.ArmApiControl",
+        "request": {
+          "method": "POST",
+          "path": "/providers/Microsoft.Management/getEntities?api-version=2020-05-01"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "name": "integrationConfig",
+        "type": "Microsoft.Common.Section",
+        "label": "Integration Configuration",
+        "elements": [
+          {
+            "name": "subscriptionsList",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Subscriptions to onboard",
+            "toolTip": "Select one or more subscriptions to onboard",
+            "filterPlaceholder": "Select subscriptions",
+            "filter": true,
+            "multiselect": true,
+            "selectAll": true,
+            "defaultValue": "[map(filter(steps('basics').armio.value,(i) => and(not(equals(i.type,'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions,'noaccess'),equals(i.properties.inheritedPermissions,'noaccess'))))),(item) => item.properties.displayName)]",
+            "constraints": {
+              "allowedValues": "[map(filter(steps('basics').armio.value, (i)=>and(   not(equals(i.type, 'Microsoft.Management/managementGroups')),   not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
+              "required": false
+            },
+            "visible": true
+          },
+          {
+            "name": "directoryDomain",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Directory Domain",
+            "toolTip": "Your organization's domain (e.g., yourcompany.com). This should match your Azure AD domain.",
+            "placeholder": "yourcompany.com",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_.]+[a-zA-Z0-9]$",
+              "validationMessage": "Must be a valid domain name"
+            }
+          },
+          {
+            "name": "integrationNamePattern",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Integration Name Pattern",
+            "defaultValue": "Azure-{subscriptionId}",
+            "toolTip": "Name pattern for the integration. Use {subscriptionId} as a placeholder for the subscription ID. Example: 'MyCompany-Azure-{subscriptionId}' or just 'Azure-{subscriptionId}'",
+            "placeholder": "Azure-{subscriptionId}",
+            "constraints": {
+              "required": false,
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_{}\\s]+[a-zA-Z0-9}]$",
+              "validationMessage": "Must contain only letters, numbers, hyphens, underscores, spaces, and {subscriptionId} placeholder"
+            }
+          }
+        ]
+      },
+      {
+        "name": "servicePrincipal",
+        "label": "Service Principal",
+        "elements": [
+          {
+            "name": "createAppReg",
+            "type": "Microsoft.Common.Section",
+            "label": "Create Firefly Azure Integration",
+            "elements": [
+              {
+                "name": "infoBox",
+                "type": "Microsoft.Common.InfoBox",
+                "visible": true,
+                "options": {
+                  "icon": "Info",
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on selected subscriptions:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader"
+                }
+              },
+              {
+                "name": "ServicePrincipal",
+                "type": "Microsoft.Common.ServicePrincipalSelector",
+                "label": {
+                  "servicePrincipalId": "Service Principal Id",
+                  "password": "Client Secret",
+                  "sectionHeader": "Service Principal"
+                },
+                "toolTip": {
+                  "servicePrincipalId": "Service Principal for Firefly integration"
+                },
+                "defaultValue": {
+                  "principalId": "<default guid>",
+                  "name": "(New) default App Id"
+                },
+                "constraints": {
+                  "required": true,
+                  "validationMessage": "Must be a valid client secret"
+                },
+                "options": {
+                  "hideCertificate": true
+                },
+                "visible": true
+              }
+            ],
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "fireflyCredentials",
+        "label": "Firefly Credentials",
+        "elements": [
+          {
+            "name": "ffAccessKey",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+                "password": "Firefly Access Key",
+                "confirmPassword": "Re-enter Firefly Access Key"
+            },
+            "toolTip": "Enter your Firefly Access Key.",
+            "constraints": { 
+              "required": true,
+              "regex": "^.+$",
+              "validationMessage": "Firefly Access Key is required"
+            },
+            "options": {
+              "hideConfirmation": true
+            }
+          },
+          {
+            "name": "ffSecretKey",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+                "password": "Firefly Secret Key",
+                "confirmPassword": "Re-enter Firefly Secret Key"
+            },
+            "toolTip": "Enter your Firefly Secret Key.",
+            "constraints": { 
+              "required": true,
+              "regex": "^.+$",
+              "validationMessage": "Firefly Secret Key is required"
+            },
+            "options": {
+              "hideConfirmation": true
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "location": "[location()]",
+      "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
+      "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
+      "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
+      "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
+      "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
+      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
+      "integrationNamePattern": "[if(empty(steps('integrationConfig').integrationNamePattern), 'Azure-{subscriptionId}', steps('integrationConfig').integrationNamePattern)]"
+    }
+  }
+}

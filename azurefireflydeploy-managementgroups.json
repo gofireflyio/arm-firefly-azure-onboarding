@@ -1,0 +1,230 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "managementGroupId": {
+      "type": "string",
+      "metadata": { "description": "Management Group ID for role assignment" }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westus2",
+      "metadata": { "description": "Resources location" }
+    },
+    "servicePrincipalObjectId": {
+      "type": "String",
+      "metadata": { "description": "Service principal Object Id, needed for Role Assignment" }
+    },
+    "servicePrincipalClientId": {
+      "type": "String",
+      "metadata": { "description": "Service principal Client Id" }
+    },
+    "servicePrincipalClientSecret": {
+      "type": "securestring",
+      "metadata": { "description": "Service principal client secret" }
+    },
+    "subscriptionIdForDeployment": {
+      "type": "string",
+      "metadata": { "description": "Subscription ID where deployment resources will be created" }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": { "description": "Resource group name where deployment scripts will be created" }
+    },
+    "tenantId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Azure Active Directory tenant ID (optional - will be retrieved dynamically if not provided)" }
+    },
+    "fireflyAccessKey": {
+      "type": "securestring",
+      "metadata": { "description": "Firefly access key" }
+    },
+    "fireflySecretKey": {
+      "type": "securestring",
+      "metadata": { "description": "Firefly secret key" }
+    },
+    "directoryDomain": {
+      "type": "string",
+      "metadata": { "description": "Your organization's domain (e.g., yourcompany.com)" }
+    },
+    "integrationNamePattern": {
+      "type": "string",
+      "defaultValue": "Azure-MG-{managementGroupId}",
+      "metadata": { "description": "Name pattern for integrations. Use {managementGroupId} as placeholder." }
+    },
+    "newguid": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+          "description": "Just a Guid to append to deployment script name"
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(parameters('managementGroupId'), 'firefly reader mg', parameters('servicePrincipalObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(parameters('managementGroupId'), 'firefly billing reader mg', parameters('servicePrincipalObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', 'fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(parameters('managementGroupId'), 'firefly app config reader mg', parameters('servicePrincipalObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', '516239f1-63e1-4d78-a4de-a74fb236a071')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(parameters('managementGroupId'), 'firefly security reader mg', parameters('servicePrincipalObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', '39bc4728-0917-49c7-9d2c-d95423bc2eb4')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "managementGroupId": {
+              "value": "[parameters('managementGroupId')]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "servicePrincipalClientId": {
+              "value": "[parameters('servicePrincipalClientId')]"
+          },
+          "servicePrincipalClientSecret": {
+              "value": "[parameters('servicePrincipalClientSecret')]"
+          },
+          "fireflyAccessKey": {
+              "value": "[parameters('fireflyAccessKey')]"
+          },
+          "fireflySecretKey": {
+              "value": "[parameters('fireflySecretKey')]"
+          },
+          "directoryDomain": {
+              "value": "[parameters('directoryDomain')]"
+          },
+          "integrationNamePattern": {
+              "value": "[parameters('integrationNamePattern')]"
+          },
+          "subscriptionIdForDeployment": {
+              "value": "[parameters('subscriptionIdForDeployment')]"
+          },
+          "newguid": {
+              "value": "[parameters('newguid')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "managementGroupId": {
+                  "type": "string"
+              },
+              "location": {
+                  "type": "string"
+              },
+              "servicePrincipalClientId": {
+                  "type": "string"
+              },
+              "servicePrincipalClientSecret": {
+                  "type": "securestring"
+              },
+              "fireflyAccessKey": {
+                  "type": "securestring"
+              },
+              "fireflySecretKey": {
+                  "type": "securestring"
+              },
+              "directoryDomain": {
+                  "type": "string"
+              },
+              "integrationNamePattern": {
+                  "type": "string"
+              },
+              "subscriptionIdForDeployment": {
+                  "type": "string"
+              },
+              "newguid": {
+                  "type": "string"
+              }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[concat('firefly-mg-int-script-', parameters('newguid'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "retentionInterval": "PT1H",
+                "timeout": "PT5M",
+                "containerSettings": {},
+                "cleanupPreference": "Always",
+                "azPowerShellVersion": "8.1",
+                "environmentVariables": [
+                  { "name": "MANAGEMENT_GROUP_ID",   "value": "[parameters('managementGroupId')]" },
+                  { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
+                  { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+                  { "name": "FIREFLY_ACCESS_KEY",   "secureValue": "[parameters('fireflyAccessKey')]" },
+                  { "name": "FIREFLY_SECRET_KEY",   "secureValue": "[parameters('fireflySecretKey')]" },
+                  { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
+                  { "name": "SUBSCRIPTION_ID",       "value": "[parameters('subscriptionIdForDeployment')]" },
+                  { "name": "DIRECTORY_DOMAIN",      "value": "[parameters('directoryDomain')]" },
+                  { "name": "NAME_PATTERN",          "value": "[parameters('integrationNamePattern')]" }
+                ],
+                "scriptContent": "$tokenResp=(Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content|ConvertFrom-Json; $jwt=$tokenResp.access_token; if(-not $jwt){Write-Error 'Auth failed';exit 1}; $integrationName=$Env:NAME_PATTERN.Replace('{managementGroupId}',$Env:MANAGEMENT_GROUP_ID); Write-Host \"Creating integration for management group: $Env:MANAGEMENT_GROUP_ID\"; $bodyObj=[ordered]@{managementGroupId=$Env:MANAGEMENT_GROUP_ID;tenantId=$Env:TENANT_ID;applicationId=$Env:CLIENT_ID;clientSecret=$Env:CLIENT_SECRET;name=$integrationName;directoryDomain=$Env:DIRECTORY_DOMAIN;isAutoDiscover=$true;subscriptionId=$Env:SUBSCRIPTION_ID}; $body=$bodyObj|ConvertTo-Json -Compress; Write-Host \"Request body: $body\"; Write-Host \"Body length: $($body.Length)\"; try { $headers=@{'Authorization'=\"Bearer $jwt\";'Content-Type'='application/json'}; $intResp=Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/integrations/azure/' -Headers $headers -Body $body; Write-Host \"Response status: $($intResp.StatusCode)\"; Write-Host \"Response content: $($intResp.Content)\" } catch { Write-Host \"Error details: $($_.Exception.Message)\"; Write-Host \"Response: $($_.Exception.Response)\"; if($_.Exception.Response) { $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream()); $reader.BaseStream.Position = 0; $reader.DiscardBufferedData(); $responseBody = $reader.ReadToEnd(); Write-Host \"Response body: $responseBody\" }; throw }; if($intResp.StatusCode -ne 200 -and $intResp.StatusCode -ne 201){Write-Error \"Integration failed for management group\";exit 1}; Write-Host \"Successfully created integration for management group $Env:MANAGEMENT_GROUP_ID\""
+              }
+            }
+          ],
+          "outputs": {
+            "tenantId": {
+              "type": "string",
+              "value": "[subscription().tenantId]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "subscriptionIdForDeployment": {"type":"string","value":"[parameters('subscriptionIdForDeployment')]"},
+    "managementGroupId": {"type":"string","value":"[parameters('managementGroupId')]"}
+  }
+} 

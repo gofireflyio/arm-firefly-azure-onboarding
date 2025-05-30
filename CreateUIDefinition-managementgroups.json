@@ -1,0 +1,235 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true
+    },
+    "basics": [
+      {
+        "name": "location",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Location",
+        "defaultValue": "global",
+        "toolTip": "Resources location",
+        "visible": false
+      },
+      {
+        "name": "infoServicePrincipal",
+        "type": "Microsoft.Common.InfoBox",
+        "visible": true,
+        "options": {
+          "icon": "Info",
+          "text": "The selection of management group below defines the subscriptions Firefly will monitor. Any subscriptions within the selected scope, including any subscriptions created in the future, will be automatically discovered and monitored by Firefly. You must have the <b>owner</b> role in the Management Group selected.\n\nThe selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
+        }
+      },
+      {
+        "name": "armio",
+        "type": "Microsoft.Solutions.ArmApiControl",
+        "request": {
+          "method": "POST",
+          "path": "/providers/Microsoft.Management/getEntities?api-version=2020-05-01&$skiptoken="
+        }
+      },
+      {
+        "name": "managementGroupSelector",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Management Group",
+        "defaultValue": "",
+        "toolTip": "Select the management group to monitor. This will grant Reader permissions at the management group level.",
+        "filterPlaceholder": "Select a management group",
+        "filter": true,
+        "constraints": {
+          "allowedValues": "[map(filter(steps('basics').armio.value, (item) => equals(item.type, 'Microsoft.Management/managementGroups')), (item) => parse(concat('{\"label\":\"', item.properties.displayName, ' (', item.name, ')', '\",\"value\":\"', item.name, '\"}')))]",
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "subscriptionForDeployment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Subscription",
+        "toolTip": "Subscription to run the deployment on",
+        "filterPlaceholder": "Select subscription to run the deployment script on",
+        "filter": true,
+        "multiselect": false,
+        "selectAll": false,
+        "defaultValue": "[map(filter(steps('basics').armio.value,(i) => and(not(equals(i.type,'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions,'noaccess'),equals(i.properties.inheritedPermissions,'noaccess'))))),(item) => item.properties.displayName)]",
+        "constraints": {
+          "allowedValues": "[map(filter(steps('basics').armio.value,(i)=>and(not(equals(i.type, 'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "armrg",
+        "type": "Microsoft.Solutions.ArmApiControl",
+        "request": {
+          "method": "GET",
+          "path": "[concat('/subscriptions/',basics('subscriptionForDeployment'),'/resourceGroups?api-version=2019-05-01')]"
+        }
+      },
+      {
+        "name": "resourceGroupForDeployment",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Resource Group",
+        "toolTip": "Resource Group to run the deployment on",
+        "filterPlaceholder": "Select resourceGroup to run the deployment script on",
+        "filter": true,
+        "multiselect": false,
+        "selectAll": false,
+        "defaultValue": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+        "constraints": {
+          "allowedValues": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+          "required": true
+        },
+        "visible": true
+      }
+    ],
+    "steps": [
+      {
+        "name": "servicePrincipal",
+        "label": "Service Principal",
+        "elements": [
+          {
+            "name": "createAppReg",
+            "type": "Microsoft.Common.Section",
+            "label": "Create Firefly Azure Integration",
+            "elements": [
+              {
+                "name": "infoBox",
+                "type": "Microsoft.Common.InfoBox",
+                "visible": true,
+                "options": {
+                  "icon": "Info",
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader"
+                }
+              },
+              {
+                "name": "ServicePrincipal",
+                "type": "Microsoft.Common.ServicePrincipalSelector",
+                "label": {
+                  "servicePrincipalId": "Service Principal Id",
+                  "password": "Client Secret",
+                  "sectionHeader": "Service Principal"
+                },
+                "toolTip": {
+                  "servicePrincipalId": "Service Principal for Firefly integration"
+                },
+                "defaultValue": {
+                  "principalId": "",
+                  "name": "(New) default App Id"
+                },
+                "constraints": {
+                  "required": true,
+                  "validationMessage": "Must be a valid client secret"
+                },
+                "options": {
+                  "hideCertificate": true
+                },
+                "visible": true
+              }
+            ],
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "integrationConfig",
+        "label": "Integration Configuration",
+        "elements": [
+          {
+            "name": "directoryDomain",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Directory Domain",
+            "toolTip": "Your organization's domain (e.g., yourcompany.com). This should match your Azure AD domain.",
+            "placeholder": "yourcompany.com",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_.]+[a-zA-Z0-9]$",
+              "validationMessage": "Must be a valid domain name"
+            }
+          },
+          {
+            "name": "integrationNamePattern",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Integration Name Pattern",
+            "defaultValue": "Azure-MG-{managementGroupId}",
+            "toolTip": "Name pattern for the integration. Use {managementGroupId} as a placeholder for the management group ID. Example: 'MyCompany-Azure-MG-{managementGroupId}'",
+            "placeholder": "Azure-MG-{managementGroupId}",
+            "constraints": {
+              "required": false,
+              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_{}\\s]+[a-zA-Z0-9}]$",
+              "validationMessage": "Must contain only letters, numbers, hyphens, underscores, spaces, and {managementGroupId} placeholder"
+            }
+          },
+          {
+            "name": "monitoringInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Firefly will automatically discover and monitor all subscriptions within the selected management group hierarchy. New subscriptions added to the management group will be automatically discovered."
+            }
+          }
+        ]
+      },
+      {
+        "name": "fireflyCredentials",
+        "label": "Firefly Credentials",
+        "elements": [
+          {
+            "name": "ffAccessKey",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+                "password": "Firefly Access Key",
+                "confirmPassword": "Re-enter Firefly Access Key"
+            },
+            "toolTip": "Enter your Firefly Access Key.",
+            "constraints": { 
+              "required": true,
+              "regex": "^.+$",
+              "validationMessage": "Firefly Access Key is required"
+            },
+            "options": {
+              "hideConfirmation": true
+            }
+          },
+          {
+            "name": "ffSecretKey",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+                "password": "Firefly Secret Key",
+                "confirmPassword": "Re-enter Firefly Secret Key"
+            },
+            "toolTip": "Enter your Firefly Secret Key.",
+            "constraints": { 
+              "required": true,
+              "regex": "^.+$",
+              "validationMessage": "Firefly Secret Key is required"
+            },
+            "options": {
+              "hideConfirmation": true
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "managementGroupId": "[basics('managementGroupSelector')]",
+      "location": "[location()]",
+      "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
+      "resourceGroupName": "[basics('resourceGroupForDeployment')]",
+      "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
+      "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
+      "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
+      "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
+      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
+      "integrationNamePattern": "[if(empty(steps('integrationConfig').integrationNamePattern), 'Azure-MG-{managementGroupId}', steps('integrationConfig').integrationNamePattern)]"
+    }
+  }
+} 
+
+

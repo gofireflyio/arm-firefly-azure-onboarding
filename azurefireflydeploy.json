@@ -1,0 +1,166 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "westus2",
+      "metadata": { "description": "Resources location" }
+    },
+    "servicePrincipalObjectId": {
+      "type": "String",
+      "metadata": { "description": "Service principal Object Id, needed for Role Assignment" }
+    },
+    "servicePrincipalClientId": {
+      "type": "String",
+      "metadata": { "description": "Service principal Client Id" }
+    },
+    "servicePrincipalClientSecret": {
+      "type": "securestring",
+      "metadata": { "description": "Service principal client secret" }
+    },
+    "subscriptionsList": {
+      "type": "array",
+      "defaultValue": ["[subscription().subscriptionId]"],
+      "metadata": { "description": "Subscriptions list to onboard" }
+    },
+    "subscriptionCount": {
+      "type": "int",
+      "defaultValue": "[length(parameters('subscriptionsList'))]"
+    },
+    "fireflyAccessKey": {
+      "type": "securestring",
+      "metadata": { "description": "Firefly access key" }
+    },
+    "fireflySecretKey": {
+      "type": "securestring",
+      "metadata": { "description": "Firefly secret key" }
+    },
+    "directoryDomain": {
+      "type": "string",
+      "metadata": { "description": "Your organization's domain (e.g., yourcompany.com)" }
+    },
+    "integrationNamePattern": {
+      "type": "string",
+      "defaultValue": "Azure-{subscriptionId}",
+      "metadata": { "description": "Name pattern for integrations. Use {subscriptionId} as placeholder." }
+    },
+    "newguid": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+          "description": "Just a Guid to append to deployment script name"
+      }
+    }
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "subscriptionsTemplateCopy",
+        "count": "[length(parameters('subscriptionsList'))]",
+        "mode": "Parallel"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('roleAssignSubsTpl-', parameters('newguid'), copyIndex())]",
+      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "servicePrincipalObjectId": {
+              "value": "[parameters('servicePrincipalObjectId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "servicePrincipalObjectId": {
+                  "type": "String",
+                  "metadata": {
+                      "description": "Service principal object Id, needed for Role Assignment"
+                  }
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-10-01-preview",
+              "name": "[guid(subscription().id, 'firefly reader', parameters('servicePrincipalObjectId'))]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-10-01-preview",
+              "name": "[guid(subscription().id, 'firefly billing reader', parameters('servicePrincipalObjectId'))]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', 'fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64')]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-10-01-preview",
+              "name": "[guid(subscription().id, 'firefly app config reader', parameters('servicePrincipalObjectId'))]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', '516239f1-63e1-4d78-a4de-a74fb236a071')]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-10-01-preview",
+              "name": "[guid(subscription().id, 'firefly security reader', parameters('servicePrincipalObjectId'))]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', '39bc4728-0917-49c7-9d2c-d95423bc2eb4')]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {}
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
+      "location": "[parameters('location')]",
+      "kind": "AzurePowerShell",
+      "properties": {
+        "retentionInterval": "PT1H",
+        "timeout": "PT2M",
+        "containerSettings": {},
+        "cleanupPreference": "Always",
+        "azPowerShellVersion": "8.1",
+        "environmentVariables": [
+          { "name": "SUBSCRIPTIONS_LIST", "value": "[join(parameters('subscriptionsList'), ',')]" },
+          { "name": "SUBSCRIPTION_COUNT",   "value": "[parameters('subscriptionCount')]" },
+          { "name": "CLIENT_ID",           "value": "[parameters('servicePrincipalClientId')]" },
+          { "name": "CLIENT_SECRET",       "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+          { "name": "FIREFLY_ACCESS_KEY",  "secureValue": "[parameters('fireflyAccessKey')]" },
+          { "name": "FIREFLY_SECRET_KEY",  "secureValue": "[parameters('fireflySecretKey')]" },
+          { "name": "TENANT_ID",           "value": "[subscription().tenantId]" },
+          { "name": "DIRECTORY_DOMAIN",    "value": "[parameters('directoryDomain')]" },
+          { "name": "NAME_PATTERN",        "value": "[parameters('integrationNamePattern')]" }
+        ],
+        "scriptContent": "foreach ($sub in $Env:SUBSCRIPTIONS_LIST -split ',') { $tokenResp=(Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content|ConvertFrom-Json; $jwt=$tokenResp.access_token; if(-not $jwt){Write-Error 'Auth failed';exit 1}; $integrationName=$Env:NAME_PATTERN.Replace('{subscriptionId}',$sub); $intResp=Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/integrations/azure/' -Headers @{Authorization=\"Bearer $jwt\"} -Body (@{subscriptionId=$sub;tenantId=$Env:TENANT_ID;applicationId=$Env:CLIENT_ID;clientSecret=$Env:CLIENT_SECRET;name=$integrationName;directoryDomain=$Env:DIRECTORY_DOMAIN;isProd=$false;isAutoDiscover=$true}|ConvertTo-Json); if($intResp.StatusCode -ne 200){Write-Error \"Integration failed for $sub\";exit 1} }"
+      }
+    }
+  ],
+  "outputs": {
+    "subscriptionCount": {"type":"int","value":"[parameters('subscriptionCount')]"}
+  }
+}
