@@ -53,7 +53,7 @@
     },
     "integrationNamePattern": {
       "type": "string",
-      "defaultValue": "[subscription().displayName]",
+      "defaultValue": "{subscriptionId}",
       "metadata": { "description": "Name pattern for integrations. Use {subscriptionId} as placeholder." }
     },
     "newguid": {
