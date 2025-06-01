@@ -149,15 +149,6 @@
               "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_{}\\s]+[a-zA-Z0-9}]$",
               "validationMessage": "Must contain only letters, numbers, hyphens, underscores, spaces, and {managementGroupId} placeholder"
             }
-          },
-          {
-            "name": "monitoringInfo",
-            "type": "Microsoft.Common.InfoBox",
-            "visible": true,
-            "options": {
-              "icon": "Info",
-              "text": "Firefly will automatically discover and monitor all subscriptions within the selected management group hierarchy. New subscriptions added to the management group will be automatically discovered."
-            }
           }
         ]
       },
