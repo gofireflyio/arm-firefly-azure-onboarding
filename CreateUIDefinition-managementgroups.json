@@ -33,20 +33,6 @@
         }
       },
       {
-        "name": "managementGroupSelector",
-        "type": "Microsoft.Common.DropDown",
-        "label": "Management Group",
-        "defaultValue": "",
-        "toolTip": "Select the management group to monitor. This will grant Reader permissions at the management group level.",
-        "filterPlaceholder": "Select a management group",
-        "filter": true,
-        "constraints": {
-          "allowedValues": "[map(filter(steps('basics').armio.value, (item) => equals(item.type, 'Microsoft.Management/managementGroups')), (item) => parse(concat('{\"label\":\"', item.properties.displayName, ' (', item.name, ')', '\",\"value\":\"', item.name, '\"}')))]",
-          "required": true
-        },
-        "visible": true
-      },
-      {
         "name": "subscriptionForDeployment",
         "type": "Microsoft.Common.DropDown",
         "label": "Subscription",
@@ -154,9 +140,9 @@
           {
             "name": "integrationNamePattern",
             "type": "Microsoft.Common.TextBox",
-            "label": "Integration Name Pattern",
+            "label": "Integration Name",
             "defaultValue": "Azure-MG-{managementGroupId}",
-            "toolTip": "Name pattern for the integration. Use {managementGroupId} as a placeholder for the management group ID. Example: 'MyCompany-Azure-MG-{managementGroupId}'",
+            "toolTip": "Name for the integration. Use {managementGroupId} as a placeholder for the management group ID. Example: 'MyCompany-Azure-MG-{managementGroupId}'",
             "placeholder": "Azure-MG-{managementGroupId}",
             "constraints": {
               "required": false,

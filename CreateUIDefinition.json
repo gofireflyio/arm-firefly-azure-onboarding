@@ -67,9 +67,9 @@
           {
             "name": "integrationNamePattern",
             "type": "Microsoft.Common.TextBox",
-            "label": "Integration Name Pattern",
+            "label": "Integration Name",
             "defaultValue": "Azure-{subscriptionId}",
-            "toolTip": "Name pattern for the integration. Use {subscriptionId} as a placeholder for the subscription ID. Example: 'MyCompany-Azure-{subscriptionId}' or just 'Azure-{subscriptionId}'",
+            "toolTip": "Name for the integration. Use {subscriptionId} as a placeholder for the subscription ID. Example: 'MyCompany-Azure-{subscriptionId}' or just 'Azure-{subscriptionId}'",
             "placeholder": "Azure-{subscriptionId}",
             "constraints": {
               "required": false,
