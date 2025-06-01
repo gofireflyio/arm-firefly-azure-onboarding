@@ -3,8 +3,11 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "managementGroupId": {
+      "defaultValue": "[managementGroup().name]",
       "type": "string",
-      "metadata": { "description": "Management Group ID for role assignment" }
+      "metadata": {
+          "description": "Management group Id, to assign a role assignment to"
+      }
     },
     "location": {
       "type": "string",
