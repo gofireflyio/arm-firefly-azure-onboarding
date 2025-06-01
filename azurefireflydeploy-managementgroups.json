@@ -321,40 +321,18 @@
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Authorization/roleDefinitions",
-              "apiVersion": "2022-04-01",
-              "name": "[guid('FireflyStorageAccountBlobReader', parameters('subscriptionIdForDeployment'))]",
-              "properties": {
-                "roleName": "[concat('FireflyStorageAccountBlobReader-', parameters('subscriptionIdForDeployment'))]",
-                "description": "Firefly's requested permissions for blob reading",
-                "permissions": [
-                  {
-                    "dataActions": [
-                      "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read"
-                    ]
-                  }
-                ],
-                "assignableScopes": [
-                  "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
-                ]
-              }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageAccountBlobReader', parameters('subscriptionIdForDeployment'))]",
-              "dependsOn": [
-                "[resourceId('Microsoft.Authorization/roleDefinitions', guid('FireflyStorageAccountBlobReader', parameters('subscriptionIdForDeployment')))]"
-              ],
+              "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', resourceGroup().id)]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
               "properties": {
-                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', guid('FireflyStorageAccountBlobReader', parameters('subscriptionIdForDeployment')))]",
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
-                "scope": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]",
-                "principalType": "ServicePrincipal",
-                "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state') OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*.tfstateenv:*'))",
-                "conditionVersion": "2.0"
-              }
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
