@@ -203,7 +203,6 @@
       }
     ],
     "outputs": {
-      "managementGroupId": "[basics('managementGroupSelector')]",
       "location": "[location()]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
       "resourceGroupName": "[basics('resourceGroupForDeployment')]",
