@@ -56,6 +56,11 @@
       "defaultValue": true,
       "metadata": { "description": "Enable event-driven monitoring for subscriptions" }
     },
+    "enableAutoDiagnosticPolicy": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Enable Azure Policy to automatically configure diagnostic settings for new subscriptions" }
+    },
     "fireflyWebhookUrl": {
       "type": "string",
       "defaultValue": "https://azureevents-env1.dev.firefly.ai",
@@ -79,7 +84,10 @@
       }
     }
   },
-  "variables": {},
+  "variables": {
+    "policyDefinitionName": "[concat('firefly-diag-policy-', parameters('managementGroupId'))]",
+    "policyAssignmentName": "[concat('firefly-diag-assign-', parameters('managementGroupId'))]"
+  },
   "resources": [
     {
       "type": "Microsoft.Authorization/roleAssignments",
@@ -123,6 +131,118 @@
         "principalId": "[parameters('servicePrincipalObjectId')]",
         "principalType": "ServicePrincipal",
         "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
+      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2021-06-01",
+      "name": "[variables('policyDefinitionName')]",
+      "properties": {
+        "displayName": "Deploy Diagnostic Settings for Subscriptions to Firefly Storage Account",
+        "description": "Automatically deploys diagnostic settings for subscription activity logs to Firefly storage account",
+        "mode": "All",
+        "policyType": "Custom",
+        "metadata": {
+          "category": "Monitoring"
+        },
+        "parameters": {
+          "storageAccountId": {
+            "type": "String",
+            "metadata": {
+              "displayName": "Storage Account Resource ID",
+              "description": "Resource ID of the Storage Account to send logs to"
+            }
+          }
+        },
+        "policyRule": {
+          "if": {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions"
+          },
+          "then": {
+            "effect": "deployIfNotExists",
+            "details": {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
+              "roleDefinitionIds": [
+                "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+              ],
+              "existenceCondition": {
+                "allOf": [
+                  {
+                    "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
+                    "equals": "[[parameters('storageAccountId')]]"
+                  }
+                ]
+              },
+              "deployment": {
+                "properties": {
+                  "mode": "incremental",
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "storageAccountId": {
+                        "type": "string"
+                      }
+                    },
+                    "resources": [
+                      {
+                        "type": "Microsoft.Insights/diagnosticSettings",
+                        "apiVersion": "2021-05-01-preview",
+                        "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
+                        "location": "global",
+                        "properties": {
+                          "storageAccountId": "[[parameters('storageAccountId')]]",
+                          "logs": [
+                            {
+                              "category": "Administrative",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Security",
+                              "enabled": true
+                            },
+                            {
+                              "category": "Policy",
+                              "enabled": true
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "parameters": {
+                    "storageAccountId": {
+                      "value": "[[parameters('storageAccountId')]]"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2021-06-01",
+      "name": "[variables('policyAssignmentName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]"
+      ],
+      "properties": {
+        "displayName": "Firefly Diagnostic Settings Auto-deployment",
+        "description": "Automatically configures diagnostic settings for new subscriptions",
+        "policyDefinitionId": "[resourceId('Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]",
+        "parameters": {
+          "storageAccountId": {
+            "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+          }
+        }
       }
     },
     {
@@ -360,6 +480,34 @@
                 ],
                 "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$successCount = 0\n$failedCount = 0\n\n# Configure diagnostic settings for each subscription\nforeach ($subId in $allSubscriptionIds) {\n    Write-Host \"Configuring diagnostic settings for subscription: $subId\"\n    \n    try {\n        # Set context to the subscription\n        Set-AzContext -SubscriptionId $subId | Out-Null\n        \n        # Check if diagnostic setting already exists\n        $existingSettings = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n        $fireflySettingExists = $false\n        \n        if ($existingSettings) {\n            foreach ($setting in $existingSettings) {\n                if ($setting.Name -like '*firefly*') {\n                    Write-Host \"Firefly diagnostic setting already exists for subscription $subId\"\n                    $fireflySettingExists = $true\n                    break\n                }\n            }\n        }\n        \n        if (-not $fireflySettingExists) {\n            # Create diagnostic setting\n            $diagSettingName = \"firefly-diag-$subId\"\n            \n            Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" `\n                -Name $diagSettingName `\n                -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n                -Category 'Administrative' `\n                -Enabled $true | Out-Null\n                \n            Write-Host \"Successfully configured diagnostic settings for subscription $subId\"\n            $successCount++\n        } else {\n            $successCount++\n        }\n    } catch {\n        Write-Warning \"Failed to configure diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n        $failedCount++\n    }\n}\n\nWrite-Host \"`nDiagnostic Settings Summary:\"\nWrite-Host \"Successfully configured: $successCount\"\nWrite-Host \"Failed: $failedCount\"\n\nif ($failedCount -eq $allSubscriptionIds.Count -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"Failed to configure diagnostic settings for all subscriptions\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
               }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[concat('firefly-mg-activity-log-', parameters('newguid'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ],
+              "properties": {
+                "retentionInterval": "PT1H",
+                "timeout": "PT10M",
+                "containerSettings": {},
+                "cleanupPreference": "Always",
+                "azPowerShellVersion": "8.1",
+                "environmentVariables": [
+                  { "name": "MANAGEMENT_GROUP_ID",   "value": "[parameters('managementGroupId')]" },
+                  { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
+                  { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+                  { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
+                  { "name": "STORAGE_ACCOUNT_ID",    "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]" },
+                  { "name": "SUBSCRIPTION_ID",       "value": "[parameters('subscriptionIdForDeployment')]" },
+                  { "name": "RESOURCE_GROUP",        "value": "[parameters('resourceGroupName')]" }
+                ],
+                "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Set context to deployment subscription\nSet-AzContext -SubscriptionId $Env:SUBSCRIPTION_ID | Out-Null\n\nWrite-Host \"Checking for existing management group activity log profile\"\n\n# Check if log profile already exists\n$existingProfile = Get-AzLogProfile -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*firefly-mg-*' }\n\nif ($existingProfile) {\n    Write-Host \"Activity log profile already exists: $($existingProfile.Name)\"\n    exit 0\n}\n\n# Create log profile for management group activities\n$profileName = \"firefly-mg-activity-$Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    Write-Host \"Creating activity log profile: $profileName\"\n    \n    # Categories that might capture subscription association events\n    $categories = @('Administrative', 'Policy')\n    \n    # Create the log profile\n    Add-AzLogProfile `\n        -Name $profileName `\n        -Location global `\n        -ServiceBusRuleId $null `\n        -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n        -RetentionInDays 7 `\n        -Category $categories | Out-Null\n    \n    Write-Host \"Successfully created activity log profile\"\n    \n} catch {\n    # If it fails, try alternative approach using REST API\n    Write-Warning \"Standard approach failed, trying REST API: $($_.Exception.Message)\"\n    \n    $accessToken = (Get-AzAccessToken).Token\n    $headers = @{\n        'Authorization' = \"Bearer $accessToken\"\n        'Content-Type' = 'application/json'\n    }\n    \n    # Alternative: Create diagnostic setting at tenant level if possible\n    $diagSettingName = \"firefly-tenant-diag\"\n    $uri = \"https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/${diagSettingName}?api-version=2017-04-01-preview\"\n    \n    $body = @{\n        properties = @{\n            storageAccountId = $Env:STORAGE_ACCOUNT_ID\n            logs = @(\n                @{\n                    category = 'AuditLogs'\n                    enabled = $true\n                    retentionPolicy = @{\n                        days = 7\n                        enabled = $true\n                    }\n                }\n            )\n        }\n    } | ConvertTo-Json -Depth 10\n    \n    try {\n        Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body $body\n        Write-Host \"Created tenant-level diagnostic setting\"\n    } catch {\n        Write-Warning \"Could not create tenant-level diagnostic setting: $($_.Exception.Message)\"\n        Write-Host \"Note: Management group activity logs may require additional configuration\"\n    }\n}\n\nWrite-Host \"Activity log configuration completed\""
+              }
             }
           ],
           "outputs": {
@@ -395,6 +543,11 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+    },
+    "policyAssignmentId": {
+      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
+      "type":"string",
+      "value":"[if(and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled')), resourceId('Microsoft.Authorization/policyAssignments', variables('policyAssignmentName')), '')]"
     }
   }
 } 
