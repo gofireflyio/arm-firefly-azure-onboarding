@@ -528,7 +528,8 @@
                 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
                 "principalId": "[reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId]",
                 "principalType": "ServicePrincipal"
-              }
+              },
+              "scope": "[concat('/subscriptions/', subscription().subscriptionId)]"
             }
           ],
           "outputs": {
