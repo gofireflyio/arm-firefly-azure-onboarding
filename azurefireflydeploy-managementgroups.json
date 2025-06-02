@@ -403,7 +403,7 @@
                 "description": "Alert when a subscription is added to the monitored management group",
                 "enabled": true,
                 "scopes": [
-                  "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+                  "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
                 ],
                 "condition": {
                   "allOf": [
@@ -421,9 +421,7 @@
                     },
                     {
                       "field": "resourceId",
-                      "containsAny": [
-                        "[parameters('managementGroupId')]"
-                      ]
+                      "contains": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
                     }
                   ]
                 },
