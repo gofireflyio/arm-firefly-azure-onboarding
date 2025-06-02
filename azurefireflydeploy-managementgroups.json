@@ -412,7 +412,7 @@
                           {
                             "name": "filterQuery",
                             "type": "string",
-                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'), ' and resourceProvider eq ''Microsoft.Management''')}"
+                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'))}"
                           }
                         ]
                       },
@@ -496,6 +496,18 @@
                                 "equals": [
                                   "@items('For_each')?['status']?['value']",
                                   "Succeeded"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@items('For_each')?['resourceProviderName']?['value']",
+                                  "Microsoft.Management"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@items('For_each')?['operationName']?['value']",
+                                  "Microsoft.Management/managementGroups/subscriptions/write"
                                 ]
                               }
                             ]
