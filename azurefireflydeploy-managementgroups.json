@@ -360,6 +360,72 @@
                 ],
                 "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$successCount = 0\n$failedCount = 0\n\n# Configure diagnostic settings for each subscription\nforeach ($subId in $allSubscriptionIds) {\n    Write-Host \"Configuring diagnostic settings for subscription: $subId\"\n    \n    try {\n        # Set context to the subscription\n        Set-AzContext -SubscriptionId $subId | Out-Null\n        \n        # Check if diagnostic setting already exists\n        $existingSettings = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n        $fireflySettingExists = $false\n        \n        if ($existingSettings) {\n            foreach ($setting in $existingSettings) {\n                if ($setting.Name -like '*firefly*') {\n                    Write-Host \"Firefly diagnostic setting already exists for subscription $subId\"\n                    $fireflySettingExists = $true\n                    break\n                }\n            }\n        }\n        \n        if (-not $fireflySettingExists) {\n            # Create diagnostic setting\n            $diagSettingName = \"firefly-diag-$subId\"\n            \n            Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" `\n                -Name $diagSettingName `\n                -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n                -Category 'Administrative' `\n                -Enabled $true | Out-Null\n                \n            Write-Host \"Successfully configured diagnostic settings for subscription $subId\"\n            $successCount++\n        } else {\n            $successCount++\n        }\n    } catch {\n        Write-Warning \"Failed to configure diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n        $failedCount++\n    }\n}\n\nWrite-Host \"`nDiagnostic Settings Summary:\"\nWrite-Host \"Successfully configured: $successCount\"\nWrite-Host \"Failed: $failedCount\"\n\nif ($failedCount -eq $allSubscriptionIds.Count -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"Failed to configure diagnostic settings for all subscriptions\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
               }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Insights/actionGroups",
+              "apiVersion": "2021-09-01",
+              "name": "[concat('firefly-mg-alerts-', parameters('newguid'))]",
+              "location": "global",
+              "properties": {
+                "groupShortName": "FireflyMG",
+                "enabled": true,
+                "webhookReceivers": [
+                  {
+                    "name": "firefly-webhook",
+                    "serviceUri": "[parameters('fireflyWebhookUrl')]",
+                    "useCommonAlertSchema": true
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Insights/activityLogAlerts",
+              "apiVersion": "2020-10-01",
+              "name": "[concat('firefly-mg-subscription-added-', parameters('newguid'))]",
+              "location": "global",
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
+              ],
+              "properties": {
+                "description": "Alert when a subscription is added to the monitored management group",
+                "enabled": true,
+                "scopes": [
+                  "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
+                ],
+                "condition": {
+                  "allOf": [
+                    {
+                      "field": "category",
+                      "equals": "Administrative"
+                    },
+                    {
+                      "field": "operationName",
+                      "equals": "Microsoft.Management/managementGroups/subscriptions/write"
+                    },
+                    {
+                      "field": "status",
+                      "equals": "Succeeded"
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "field": "resourceId",
+                          "contains": "[concat('/managementGroups/', parameters('managementGroupId'))]"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "actionGroups": [
+                    {
+                      "actionGroupId": "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
+                    }
+                  ]
+                }
+              }
             }
           ],
           "outputs": {
@@ -376,6 +442,16 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
+            },
+            "activityLogAlertId": {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "string",
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Insights/activityLogAlerts', concat('firefly-mg-subscription-added-', parameters('newguid'))), '')]"
+            },
+            "actionGroupId": {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "string",
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid'))), '')]"
             }
           }
         }
@@ -395,6 +471,11 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+    },
+    "activityLogAlertName": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type":"string",
+      "value":"[if(parameters('eventDrivenEnabled'), concat('firefly-mg-subscription-added-', parameters('newguid')), '')]"
     }
   }
 } 
