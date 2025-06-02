@@ -420,8 +420,12 @@
                       "equals": "Succeeded"
                     },
                     {
-                      "field": "resourceId",
-                      "contains": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+                      "field": "resourceProvider",
+                      "equals": "Microsoft.Management"
+                    },
+                    {
+                      "field": "resourceType",
+                      "equals": "managementGroups/subscriptions"
                     }
                   ]
                 },
