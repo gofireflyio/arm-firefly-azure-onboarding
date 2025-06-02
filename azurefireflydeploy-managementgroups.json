@@ -382,14 +382,48 @@
                     }
                   },
                   "actions": {
+                    "Initialize_Base_URI": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "baseUri",
+                            "type": "string",
+                            "value": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
+                          }
+                        ]
+                      }
+                    },
+                    "Initialize_Filter_Query": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "filterQuery",
+                            "type": "string",
+                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'), ' and operationName.value eq ''Microsoft.Management/managementGroups/subscriptions/write''')}"
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "Initialize_Base_URI": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
                     "HTTP": {
                       "type": "Http",
                       "inputs": {
                         "method": "GET",
-                        "uri": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01&$filter=eventTimestamp ge ''', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'), ''' and operationName.value eq ''Microsoft.Management/managementGroups/subscriptions/write''')]",
+                        "uri": "@{concat(variables('baseUri'), '&', variables('filterQuery'))}",
                         "authentication": {
                           "type": "ManagedServiceIdentity"
                         }
+                      },
+                      "runAfter": {
+                        "Initialize_Filter_Query": [
+                          "Succeeded"
+                        ]
                       }
                     },
                     "Parse_JSON": {
