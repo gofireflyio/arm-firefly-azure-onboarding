@@ -126,6 +126,17 @@
       }
     },
     {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(parameters('managementGroupId'), 'firefly monitoring reader mg', parameters('servicePrincipalObjectId'))]",
+      "properties": {
+        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal",
+        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+      }
+    },
+    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
@@ -417,7 +428,11 @@
                         "method": "GET",
                         "uri": "@{concat(variables('baseUri'), '&', variables('filterQuery'))}",
                         "authentication": {
-                          "type": "ManagedServiceIdentity"
+                          "type": "ActiveDirectoryOAuth",
+                          "tenant": "[subscription().tenantId]",
+                          "audience": "https://management.azure.com/",
+                          "clientId": "[parameters('servicePrincipalClientId')]",
+                          "secret": "[parameters('servicePrincipalClientSecret')]"
                         }
                       },
                       "runAfter": {
@@ -511,9 +526,6 @@
                     }
                   }
                 }
-              },
-              "identity": {
-                "type": "SystemAssigned"
               }
             }
           ],
@@ -536,58 +548,7 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '')]"
-            },
-            "logicAppIdentityPrincipalId": {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId, '')]"
             }
-          }
-        }
-      }
-    },
-    {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('logicAppRoleAssignment-', parameters('newguid'))]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[concat('fireflyIntDeploy-', parameters('newguid'))]"
-      ],
-      "properties": {
-        "mode": "Incremental",
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-            "logicAppPrincipalId": {
-              "type": "string"
-            },
-            "managementGroupId": {
-              "type": "string"
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2020-10-01-preview",
-              "name": "[guid(parameters('logicAppPrincipalId'), 'MonitoringReader', parameters('managementGroupId'))]",
-              "properties": {
-                "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
-                "principalId": "[parameters('logicAppPrincipalId')]",
-                "principalType": "ServicePrincipal",
-                "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
-              }
-            }
-          ]
-        },
-        "parameters": {
-          "logicAppPrincipalId": {
-            "value": "[if(parameters('eventDrivenEnabled'), reference(concat('fireflyIntDeploy-', parameters('newguid'))).outputs.logicAppIdentityPrincipalId.value, '')]"
-          },
-          "managementGroupId": {
-            "value": "[parameters('managementGroupId')]"
           }
         }
       }
