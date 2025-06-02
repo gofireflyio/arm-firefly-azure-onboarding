@@ -170,16 +170,8 @@
                 "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
               ],
               "existenceCondition": {
-                "allOf": [
-                  {
-                    "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                    "equals": "[[parameters('storageAccountId')]]"
-                  },
-                  {
-                    "field": "Microsoft.Insights/diagnosticSettings/logs[*].enabled",
-                    "equals": "true"
-                  }
-                ]
+                "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
+                "equals": "[parameters('storageAccountId')]"
               },
               "deployment": {
                 "location": "eastus",
@@ -193,13 +185,14 @@
                         "type": "string"
                       }
                     },
+                    "variables": {},
                     "resources": [
                       {
                         "type": "Microsoft.Insights/diagnosticSettings",
                         "apiVersion": "2021-05-01-preview",
                         "name": "setByPolicy-firefly",
                         "properties": {
-                          "storageAccountId": "[[parameters('storageAccountId')]]",
+                          "storageAccountId": "[parameters('storageAccountId')]",
                           "logs": [
                             {
                               "categoryGroup": "allLogs",
@@ -213,7 +206,7 @@
                   },
                   "parameters": {
                     "storageAccountId": {
-                      "value": "[[parameters('storageAccountId')]]"
+                      "value": "[parameters('storageAccountId')]"
                     }
                   }
                 }
