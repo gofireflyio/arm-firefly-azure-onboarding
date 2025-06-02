@@ -536,11 +536,6 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '')]"
-            },
-            "logicAppIdentityPrincipalId": {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId, '')]"
             }
           }
         }
