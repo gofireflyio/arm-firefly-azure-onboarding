@@ -515,21 +515,6 @@
               "identity": {
                 "type": "SystemAssigned"
               }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2020-10-01-preview",
-              "name": "[guid(parameters('managementGroupId'), 'LogicApp-MonitoringReader')]",
-              "dependsOn": [
-                "[concat('fireflyIntDeploy-', parameters('newguid'))]"
-              ],
-              "properties": {
-                "roleDefinitionId": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
-                "principalId": "[reference(concat('fireflyIntDeploy-', parameters('newguid')), '2021-04-01').outputs.logicAppIdentityPrincipalId.value]",
-                "principalType": "ServicePrincipal",
-                "scope": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
-              }
             }
           ],
           "outputs": {
