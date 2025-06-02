@@ -400,7 +400,7 @@
                           {
                             "name": "baseUri",
                             "type": "string",
-                            "value": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
+                            "value": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
                           }
                         ]
                       }
