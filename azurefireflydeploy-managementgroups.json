@@ -407,14 +407,6 @@
                     {
                       "field": "status",
                       "equals": "Succeeded"
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "field": "resourceId",
-                          "contains": "[concat('/managementGroups/', parameters('managementGroupId'))]"
-                        }
-                      ]
                     }
                   ]
                 },
