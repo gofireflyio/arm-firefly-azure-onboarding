@@ -164,7 +164,8 @@
             "effect": "deployIfNotExists",
             "details": {
               "type": "Microsoft.Insights/diagnosticSettings",
-              "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
+              "deploymentScope": "subscription",
+              "existenceScope": "subscription",
               "roleDefinitionIds": [
                 "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
               ],
@@ -172,11 +173,16 @@
                 "allOf": [
                   {
                     "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                    "equals": "[[parameters('storageAccountId')]]"
+                    "equals": "[parameters('storageAccountId')]"
+                  },
+                  {
+                    "field": "Microsoft.Insights/diagnosticSettings/logs[*].enabled",
+                    "equals": "true"
                   }
                 ]
               },
               "deployment": {
+                "location": "eastus",
                 "properties": {
                   "mode": "incremental",
                   "template": {
@@ -191,31 +197,23 @@
                       {
                         "type": "Microsoft.Insights/diagnosticSettings",
                         "apiVersion": "2021-05-01-preview",
-                        "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
-                        "location": "global",
+                        "name": "setByPolicy-firefly",
                         "properties": {
-                          "storageAccountId": "[[parameters('storageAccountId')]]",
+                          "storageAccountId": "[parameters('storageAccountId')]",
                           "logs": [
                             {
-                              "category": "Administrative",
-                              "enabled": true
-                            },
-                            {
-                              "category": "Security",
-                              "enabled": true
-                            },
-                            {
-                              "category": "Policy",
+                              "categoryGroup": "allLogs",
                               "enabled": true
                             }
                           ]
                         }
                       }
-                    ]
+                    ],
+                    "outputs": {}
                   },
                   "parameters": {
                     "storageAccountId": {
-                      "value": "[[parameters('storageAccountId')]]"
+                      "value": "[parameters('storageAccountId')]"
                     }
                   }
                 }
