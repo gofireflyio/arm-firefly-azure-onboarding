@@ -126,21 +126,6 @@
       }
     },
     {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2020-10-01-preview",
-      "name": "[guid(parameters('managementGroupId'), 'LogicApp-ActivityLog-Reader')]",
-      "dependsOn": [
-        "[concat('fireflyIntDeploy-', parameters('newguid'))]"
-      ],
-      "properties": {
-        "roleDefinitionId": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
-        "principalId": "[reference(concat('fireflyIntDeploy-', parameters('newguid')), '2021-04-01').outputs.logicAppIdentityPrincipalId.value]",
-        "principalType": "ServicePrincipal",
-        "scope": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
-      }
-    },
-    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
@@ -530,6 +515,20 @@
               "identity": {
                 "type": "SystemAssigned"
               }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(concat('firefly-mg-monitor-', parameters('newguid')), 'MonitoringReader')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid')))]"
+              ],
+              "properties": {
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
+                "principalId": "[reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              }
             }
           ],
           "outputs": {
@@ -551,11 +550,6 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '')]"
-            },
-            "logicAppIdentityPrincipalId": {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId, '')]"
             }
           }
         }
