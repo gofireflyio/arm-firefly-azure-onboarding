@@ -56,11 +56,6 @@
       "defaultValue": true,
       "metadata": { "description": "Enable event-driven monitoring for subscriptions" }
     },
-    "enableAutoDiagnosticPolicy": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": { "description": "Enable Azure Policy to automatically configure diagnostic settings for new subscriptions" }
-    },
     "fireflyWebhookUrl": {
       "type": "string",
       "defaultValue": "https://azureevents-env1.dev.firefly.ai",
@@ -76,6 +71,16 @@
       "defaultValue": "[concat('firefly-events-', parameters('newguid'))]",
       "metadata": { "description": "Name for the Event Grid system topic" }
     },
+    "enableActivityLogAlerts": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Enable Activity Log Alerts to detect new subscriptions added to management group" }
+    },
+    "alertWebhookUrl": {
+      "type": "string",
+      "defaultValue": "https://azureevents-env1.dev.firefly.ai/management-group-alerts",
+      "metadata": { "description": "Webhook URL to notify when subscriptions are added to management group" }
+    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -84,10 +89,7 @@
       }
     }
   },
-  "variables": {
-    "policyDefinitionName": "[concat('firefly-diag-policy-', parameters('managementGroupId'))]",
-    "policyAssignmentName": "[concat('firefly-diag-assign-', parameters('managementGroupId'))]"
-  },
+  "variables": {},
   "resources": [
     {
       "type": "Microsoft.Authorization/roleAssignments",
@@ -131,109 +133,6 @@
         "principalId": "[parameters('servicePrincipalObjectId')]",
         "principalType": "ServicePrincipal",
         "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
-      }
-    },
-    {
-      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
-      "type": "Microsoft.Authorization/policyDefinitions",
-      "apiVersion": "2021-06-01",
-      "name": "[variables('policyDefinitionName')]",
-      "properties": {
-        "displayName": "Deploy Diagnostic Settings for Subscriptions to Firefly Storage Account",
-        "description": "Automatically deploys diagnostic settings for subscription activity logs to Firefly storage account",
-        "mode": "All",
-        "policyType": "Custom",
-        "metadata": {
-          "category": "Monitoring"
-        },
-        "parameters": {
-          "storageAccountId": {
-            "type": "String",
-            "metadata": {
-              "displayName": "Storage Account Resource ID",
-              "description": "Resource ID of the Storage Account to send logs to"
-            }
-          }
-        },
-        "policyRule": {
-          "if": {
-            "field": "type",
-            "equals": "Microsoft.Resources/subscriptions"
-          },
-          "then": {
-            "effect": "deployIfNotExists",
-            "details": {
-              "type": "Microsoft.Insights/diagnosticSettings",
-              "deploymentScope": "subscription",
-              "existenceScope": "subscription",
-              "roleDefinitionIds": [
-                "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
-              ],
-              "existenceCondition": {
-                "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                "equals": "[[parameters('storageAccountId')]"
-              },
-              "deployment": {
-                "location": "eastus",
-                "properties": {
-                  "mode": "incremental",
-                  "template": {
-                    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                      "storageAccountId": {
-                        "type": "string"
-                      }
-                    },
-                    "variables": {},
-                    "resources": [
-                      {
-                        "type": "Microsoft.Insights/diagnosticSettings",
-                        "apiVersion": "2021-05-01-preview",
-                        "name": "setByPolicy-firefly",
-                        "properties": {
-                          "storageAccountId": "[parameters('storageAccountId')]",
-                          "logs": [
-                            {
-                              "categoryGroup": "allLogs",
-                              "enabled": true
-                            }
-                          ]
-                        }
-                      }
-                    ],
-                    "outputs": {}
-                  },
-                  "parameters": {
-                    "storageAccountId": {
-                      "value": "[parameters('storageAccountId')]"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
-      "type": "Microsoft.Authorization/policyAssignments",
-      "apiVersion": "2021-06-01",
-      "name": "[variables('policyAssignmentName')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]"
-      ],
-      "properties": {
-        "displayName": "Firefly Diagnostic Settings Auto-deployment",
-        "description": "Automatically configures diagnostic settings for new subscriptions",
-        "policyDefinitionId": "[resourceId('Microsoft.Authorization/policyDefinitions', variables('policyDefinitionName'))]",
-        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]",
-        "parameters": {
-          "storageAccountId": {
-            "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
-          }
-        }
       }
     },
     {
@@ -290,6 +189,12 @@
           "resourceGroupName": {
               "value": "[parameters('resourceGroupName')]"
           },
+          "enableActivityLogAlerts": {
+              "value": "[parameters('enableActivityLogAlerts')]"
+          },
+          "alertWebhookUrl": {
+              "value": "[parameters('alertWebhookUrl')]"
+          },
           "newguid": {
               "value": "[parameters('newguid')]"
           }
@@ -338,6 +243,12 @@
                   "type": "string"
               },
               "resourceGroupName": {
+                  "type": "string"
+              },
+              "enableActivityLogAlerts": {
+                  "type": "bool"
+              },
+              "alertWebhookUrl": {
                   "type": "string"
               },
               "newguid": {
@@ -473,31 +384,67 @@
               }
             },
             {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Resources/deploymentScripts",
+              "condition": "[parameters('enableActivityLogAlerts')]",
+              "type": "Microsoft.Insights/actionGroups",
+              "apiVersion": "2021-09-01",
+              "name": "[concat('firefly-mg-alerts-', parameters('newguid'))]",
+              "location": "global",
+              "properties": {
+                "groupShortName": "FireflyMG",
+                "enabled": true,
+                "webhookReceivers": [
+                  {
+                    "name": "firefly-webhook",
+                    "serviceUri": "[parameters('alertWebhookUrl')]",
+                    "useCommonAlertSchema": true
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[parameters('enableActivityLogAlerts')]",
+              "type": "Microsoft.Insights/activityLogAlerts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-mg-activity-log-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "kind": "AzurePowerShell",
+              "name": "[concat('firefly-mg-subscription-added-', parameters('newguid'))]",
+              "location": "global",
               "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+                "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
               ],
               "properties": {
-                "retentionInterval": "PT1H",
-                "timeout": "PT10M",
-                "containerSettings": {},
-                "cleanupPreference": "Always",
-                "azPowerShellVersion": "8.1",
-                "environmentVariables": [
-                  { "name": "MANAGEMENT_GROUP_ID",   "value": "[parameters('managementGroupId')]" },
-                  { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
-                  { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
-                  { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
-                  { "name": "STORAGE_ACCOUNT_ID",    "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]" },
-                  { "name": "SUBSCRIPTION_ID",       "value": "[parameters('subscriptionIdForDeployment')]" },
-                  { "name": "RESOURCE_GROUP",        "value": "[parameters('resourceGroupName')]" }
+                "description": "Alert when a subscription is added to the monitored management group",
+                "enabled": true,
+                "scopes": [
+                  "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
                 ],
-                "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Set context to deployment subscription\nSet-AzContext -SubscriptionId $Env:SUBSCRIPTION_ID | Out-Null\n\nWrite-Host \"Checking for existing management group activity log profile\"\n\n# Check if log profile already exists\n$existingProfile = Get-AzLogProfile -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*firefly-mg-*' }\n\nif ($existingProfile) {\n    Write-Host \"Activity log profile already exists: $($existingProfile.Name)\"\n    exit 0\n}\n\n# Create log profile for management group activities\n$profileName = \"firefly-mg-activity-$Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    Write-Host \"Creating activity log profile: $profileName\"\n    \n    # Categories that might capture subscription association events\n    $categories = @('Administrative', 'Policy')\n    \n    # Create the log profile\n    Add-AzLogProfile `\n        -Name $profileName `\n        -Location global `\n        -ServiceBusRuleId $null `\n        -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n        -RetentionInDays 7 `\n        -Category $categories | Out-Null\n    \n    Write-Host \"Successfully created activity log profile\"\n    \n} catch {\n    # If it fails, try alternative approach using REST API\n    Write-Warning \"Standard approach failed, trying REST API: $($_.Exception.Message)\"\n    \n    $accessToken = (Get-AzAccessToken).Token\n    $headers = @{\n        'Authorization' = \"Bearer $accessToken\"\n        'Content-Type' = 'application/json'\n    }\n    \n    # Alternative: Create diagnostic setting at tenant level if possible\n    $diagSettingName = \"firefly-tenant-diag\"\n    $uri = \"https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/${diagSettingName}?api-version=2017-04-01-preview\"\n    \n    $body = @{\n        properties = @{\n            storageAccountId = $Env:STORAGE_ACCOUNT_ID\n            logs = @(\n                @{\n                    category = 'AuditLogs'\n                    enabled = $true\n                    retentionPolicy = @{\n                        days = 7\n                        enabled = $true\n                    }\n                }\n            )\n        }\n    } | ConvertTo-Json -Depth 10\n    \n    try {\n        Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body $body\n        Write-Host \"Created tenant-level diagnostic setting\"\n    } catch {\n        Write-Warning \"Could not create tenant-level diagnostic setting: $($_.Exception.Message)\"\n        Write-Host \"Note: Management group activity logs may require additional configuration\"\n    }\n}\n\nWrite-Host \"Activity log configuration completed\""
+                "condition": {
+                  "allOf": [
+                    {
+                      "field": "category",
+                      "equals": "Administrative"
+                    },
+                    {
+                      "field": "operationName",
+                      "equals": "Microsoft.Management/managementGroups/subscriptions/write"
+                    },
+                    {
+                      "field": "status",
+                      "equals": "Succeeded"
+                    },
+                    {
+                      "field": "resourceId",
+                      "containsAny": [
+                        "[parameters('managementGroupId')]"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "actionGroups": [
+                    {
+                      "actionGroupId": "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
+                    }
+                  ]
+                }
               }
             }
           ],
@@ -515,6 +462,16 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
+            },
+            "activityLogAlertId": {
+              "condition": "[parameters('enableActivityLogAlerts')]",
+              "type": "string",
+              "value": "[if(parameters('enableActivityLogAlerts'), resourceId('Microsoft.Insights/activityLogAlerts', concat('firefly-mg-subscription-added-', parameters('newguid'))), '')]"
+            },
+            "actionGroupId": {
+              "condition": "[parameters('enableActivityLogAlerts')]",
+              "type": "string",
+              "value": "[if(parameters('enableActivityLogAlerts'), resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid'))), '')]"
             }
           }
         }
@@ -525,6 +482,7 @@
     "subscriptionIdForDeployment": {"type":"string","value":"[parameters('subscriptionIdForDeployment')]"},
     "managementGroupId": {"type":"string","value":"[parameters('managementGroupId')]"},
     "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
+    "enableActivityLogAlerts": {"type":"bool","value":"[parameters('enableActivityLogAlerts')]"},
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
@@ -535,10 +493,10 @@
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
     },
-    "policyAssignmentId": {
-      "condition": "[and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled'))]",
+    "activityLogAlertName": {
+      "condition": "[parameters('enableActivityLogAlerts')]",
       "type":"string",
-      "value":"[if(and(parameters('enableAutoDiagnosticPolicy'), parameters('eventDrivenEnabled')), resourceId('Microsoft.Authorization/policyAssignments', variables('policyAssignmentName')), '')]"
+      "value":"[if(parameters('enableActivityLogAlerts'), concat('firefly-mg-subscription-added-', parameters('newguid')), '')]"
     }
   }
 } 
