@@ -171,7 +171,7 @@
               ],
               "existenceCondition": {
                 "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                "equals": "[parameters('storageAccountId')]"
+                "equals": "[policy().parameters.storageAccountId]"
               },
               "deployment": {
                 "location": "eastus",
@@ -206,7 +206,7 @@
                   },
                   "parameters": {
                     "storageAccountId": {
-                      "value": "[parameters('storageAccountId')]"
+                      "value": "[policy().parameters.storageAccountId]"
                     }
                   }
                 }
