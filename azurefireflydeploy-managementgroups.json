@@ -173,7 +173,7 @@
                 "allOf": [
                   {
                     "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                    "equals": "[parameters('storageAccountId')]"
+                    "equals": "[[parameters('storageAccountId')]]"
                   },
                   {
                     "field": "Microsoft.Insights/diagnosticSettings/logs[*].enabled",
@@ -199,7 +199,7 @@
                         "apiVersion": "2021-05-01-preview",
                         "name": "setByPolicy-firefly",
                         "properties": {
-                          "storageAccountId": "[parameters('storageAccountId')]",
+                          "storageAccountId": "[[parameters('storageAccountId')]]",
                           "logs": [
                             {
                               "categoryGroup": "allLogs",
@@ -213,7 +213,7 @@
                   },
                   "parameters": {
                     "storageAccountId": {
-                      "value": "[parameters('storageAccountId')]"
+                      "value": "[[parameters('storageAccountId')]]"
                     }
                   }
                 }
