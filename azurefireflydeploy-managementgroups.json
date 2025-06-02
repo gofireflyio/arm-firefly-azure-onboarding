@@ -134,10 +134,10 @@
         "[concat('fireflyIntDeploy-', parameters('newguid'))]"
       ],
       "properties": {
-        "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
+        "roleDefinitionId": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Authorization/roleDefinitions/', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
         "principalId": "[reference(concat('fireflyIntDeploy-', parameters('newguid')), '2021-04-01').outputs.logicAppIdentityPrincipalId.value]",
         "principalType": "ServicePrincipal",
-        "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
+        "scope": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'))]"
       }
     },
     {
@@ -404,7 +404,7 @@
                           {
                             "name": "baseUri",
                             "type": "string",
-                            "value": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
+                            "value": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
                           }
                         ]
                       }
