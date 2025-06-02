@@ -363,60 +363,137 @@
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Insights/actionGroups",
-              "apiVersion": "2021-09-01",
-              "name": "[concat('firefly-mg-alerts-', parameters('newguid'))]",
-              "location": "global",
+              "type": "Microsoft.Logic/workflows",
+              "apiVersion": "2019-05-01",
+              "name": "[concat('firefly-mg-monitor-', parameters('newguid'))]",
+              "location": "[parameters('location')]",
               "properties": {
-                "groupShortName": "FireflyMG",
-                "enabled": true,
-                "webhookReceivers": [
-                  {
-                    "name": "firefly-webhook",
-                    "serviceUri": "[parameters('fireflyWebhookUrl')]",
-                    "useCommonAlertSchema": true
+                "definition": {
+                  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {},
+                  "triggers": {
+                    "Recurrence": {
+                      "recurrence": {
+                        "frequency": "Minute",
+                        "interval": 5
+                      },
+                      "type": "Recurrence"
+                    }
+                  },
+                  "actions": {
+                    "HTTP": {
+                      "type": "Http",
+                      "inputs": {
+                        "method": "GET",
+                        "uri": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01&$filter=eventTimestamp ge ''', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'), ''' and operationName.value eq ''Microsoft.Management/managementGroups/subscriptions/write''')]",
+                        "authentication": {
+                          "type": "ManagedServiceIdentity"
+                        }
+                      }
+                    },
+                    "Parse_JSON": {
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('HTTP')",
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operationName": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "status": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "resourceId": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "HTTP": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "For_each": {
+                      "type": "Foreach",
+                      "foreach": "@body('Parse_JSON')?['value']",
+                      "actions": {
+                        "Condition": {
+                          "type": "If",
+                          "expression": {
+                            "and": [
+                              {
+                                "equals": [
+                                  "@items('For_each')?['status']?['value']",
+                                  "Succeeded"
+                                ]
+                              }
+                            ]
+                          },
+                          "actions": {
+                            "HTTP_Webhook": {
+                              "type": "Http",
+                              "inputs": {
+                                "method": "POST",
+                                "uri": "[parameters('fireflyWebhookUrl')]",
+                                "headers": {
+                                  "Content-Type": "application/json"
+                                },
+                                "body": {
+                                  "managementGroupId": "[parameters('managementGroupId')]",
+                                  "event": "@items('For_each')"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Parse_JSON": [
+                          "Succeeded"
+                        ]
+                      }
+                    }
                   }
-                ]
+                }
+              },
+              "identity": {
+                "type": "SystemAssigned"
               }
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Insights/activityLogAlerts",
-              "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-mg-subscription-added-', parameters('newguid'))]",
-              "location": "global",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(parameters('managementGroupId'), 'LogicApp-Reader')]",
               "dependsOn": [
-                "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
+                "[resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid')))]"
               ],
               "properties": {
-                "description": "Alert when a subscription is added to the monitored management group",
-                "enabled": true,
-                "scopes": [
-                  "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
-                ],
-                "condition": {
-                  "allOf": [
-                    {
-                      "field": "category",
-                      "equals": "Administrative"
-                    },
-                    {
-                      "field": "operationName",
-                      "equals": "Microsoft.Management/managementGroups/subscriptions/write"
-                    },
-                    {
-                      "field": "status",
-                      "equals": "Succeeded"
-                    }
-                  ]
-                },
-                "actions": {
-                  "actionGroups": [
-                    {
-                      "actionGroupId": "[resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid')))]"
-                    }
-                  ]
-                }
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
+                "principalId": "[reference(resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '2019-05-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
               }
             }
           ],
@@ -435,15 +512,10 @@
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
             },
-            "activityLogAlertId": {
+            "logicAppId": {
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Insights/activityLogAlerts', concat('firefly-mg-subscription-added-', parameters('newguid'))), '')]"
-            },
-            "actionGroupId": {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Insights/actionGroups', concat('firefly-mg-alerts-', parameters('newguid'))), '')]"
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Logic/workflows', concat('firefly-mg-monitor-', parameters('newguid'))), '')]"
             }
           }
         }
@@ -464,10 +536,10 @@
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
     },
-    "activityLogAlertName": {
+    "logicAppName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), concat('firefly-mg-subscription-added-', parameters('newguid')), '')]"
+      "value":"[if(parameters('eventDrivenEnabled'), concat('firefly-mg-monitor-', parameters('newguid')), '')]"
     }
   }
 } 
