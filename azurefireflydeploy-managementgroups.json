@@ -400,7 +400,7 @@
                           {
                             "name": "baseUri",
                             "type": "string",
-                            "value": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
+                            "value": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
                           }
                         ]
                       }
@@ -412,7 +412,7 @@
                           {
                             "name": "filterQuery",
                             "type": "string",
-                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'))}"
+                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'), ' and resourceProvider eq ''Microsoft.Management''')}"
                           }
                         ]
                       },
@@ -496,12 +496,6 @@
                                 "equals": [
                                   "@items('For_each')?['status']?['value']",
                                   "Succeeded"
-                                ]
-                              },
-                              {
-                                "equals": [
-                                  "@items('For_each')?['operationName']?['value']",
-                                  "Microsoft.Management/managementGroups/subscriptions/write"
                                 ]
                               }
                             ]
