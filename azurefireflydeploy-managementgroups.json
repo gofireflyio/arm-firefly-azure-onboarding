@@ -76,11 +76,6 @@
       "defaultValue": true,
       "metadata": { "description": "Enable Activity Log Alerts to detect new subscriptions added to management group" }
     },
-    "alertWebhookUrl": {
-      "type": "string",
-      "defaultValue": "https://azureevents-env1.dev.firefly.ai/management-group-alerts",
-      "metadata": { "description": "Webhook URL to notify when subscriptions are added to management group" }
-    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -192,9 +187,6 @@
           "enableActivityLogAlerts": {
               "value": "[parameters('enableActivityLogAlerts')]"
           },
-          "alertWebhookUrl": {
-              "value": "[parameters('alertWebhookUrl')]"
-          },
           "newguid": {
               "value": "[parameters('newguid')]"
           }
@@ -247,9 +239,6 @@
               },
               "enableActivityLogAlerts": {
                   "type": "bool"
-              },
-              "alertWebhookUrl": {
-                  "type": "string"
               },
               "newguid": {
                   "type": "string"
@@ -395,7 +384,7 @@
                 "webhookReceivers": [
                   {
                     "name": "firefly-webhook",
-                    "serviceUri": "[parameters('alertWebhookUrl')]",
+                    "serviceUri": "[parameters('fireflyWebhookUrl')]",
                     "useCommonAlertSchema": true
                   }
                 ]
