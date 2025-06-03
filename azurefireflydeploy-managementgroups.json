@@ -563,23 +563,62 @@
                             }
                           },
                           "actions": {
-                            "Send_Webhook_For_New_Subscription": {
+                            "Authenticate_With_Firefly": {
                               "type": "Http",
                               "inputs": {
                                 "method": "POST",
-                                "uri": "[parameters('fireflyWebhookUrl')]",
+                                "uri": "https://api-env1.dev.firefly.ai/api/account/access_keys/login",
                                 "headers": {
                                   "Content-Type": "application/json"
                                 },
                                 "body": {
-                                  "eventType": "ManagementGroupSubscriptionAdded",
-                                  "managementGroupId": "[parameters('managementGroupId')]",
-                                  "subscriptionId": "@items('Check_For_New_Subscriptions')?['name']",
-                                  "subscriptionDisplayName": "@items('Check_For_New_Subscriptions')?['displayName']",
-                                  "eventTimestamp": "@utcNow()",
-                                  "detectedBy": "LogicApp",
-                                  "subscription": "@items('Check_For_New_Subscriptions')"
+                                  "accessKey": "[parameters('fireflyAccessKey')]",
+                                  "secretKey": "[parameters('fireflySecretKey')]"
                                 }
+                              }
+                            },
+                            "Parse_Firefly_Auth": {
+                              "type": "ParseJson",
+                              "inputs": {
+                                "content": "@body('Authenticate_With_Firefly')",
+                                "schema": {
+                                  "type": "object",
+                                  "properties": {
+                                    "access_token": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Authenticate_With_Firefly": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Create_Firefly_Integration": {
+                              "type": "Http",
+                              "inputs": {
+                                "method": "POST",
+                                "uri": "https://api-env1.dev.firefly.ai/api/integrations/azure/",
+                                "headers": {
+                                  "Content-Type": "application/json",
+                                  "Authorization": "Bearer @{body('Parse_Firefly_Auth')?['access_token']}"
+                                },
+                                "body": {
+                                  "subscriptionId": "@items('Check_For_New_Subscriptions')?['name']",
+                                  "tenantId": "[subscription().tenantId]",
+                                  "applicationId": "[parameters('servicePrincipalClientId')]",
+                                  "clientSecret": "[parameters('servicePrincipalClientSecret')]",
+                                  "name": "@items('Check_For_New_Subscriptions')?['displayName']",
+                                  "directoryDomain": "[parameters('directoryDomain')]",
+                                  "isAutoDiscover": true
+                                }
+                              },
+                              "runAfter": {
+                                "Parse_Firefly_Auth": [
+                                  "Succeeded"
+                                ]
                               }
                             }
                           }
