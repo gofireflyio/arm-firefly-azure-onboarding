@@ -347,6 +347,21 @@
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageTableDataContributor', resourceGroup().id)]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "properties": {
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ]
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-monitor-diag-settings-', parameters('newguid'))]",
@@ -378,6 +393,9 @@
               "apiVersion": "2019-05-01",
               "name": "[concat('firefly-mg-monitor-', parameters('newguid'))]",
               "location": "[parameters('location')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ],
               "properties": {
                 "definition": {
                   "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
@@ -393,40 +411,11 @@
                     }
                   },
                   "actions": {
-                    "Initialize_Base_URI": {
-                      "type": "InitializeVariable",
-                      "inputs": {
-                        "variables": [
-                          {
-                            "name": "baseUri",
-                            "type": "string",
-                            "value": "[concat('https://management.azure.com/subscriptions/', parameters('subscriptionIdForDeployment'), '/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01')]"
-                          }
-                        ]
-                      }
-                    },
-                    "Initialize_Filter_Query": {
-                      "type": "InitializeVariable",
-                      "inputs": {
-                        "variables": [
-                          {
-                            "name": "filterQuery",
-                            "type": "string",
-                            "value": "@{concat('$filter=eventTimestamp ge ', formatDateTime(addMinutes(utcNow(), -5), 'yyyy-MM-ddTHH:mm:ssZ'))}"
-                          }
-                        ]
-                      },
-                      "runAfter": {
-                        "Initialize_Base_URI": [
-                          "Succeeded"
-                        ]
-                      }
-                    },
-                    "HTTP": {
+                    "Get_Current_Subscriptions": {
                       "type": "Http",
                       "inputs": {
                         "method": "GET",
-                        "uri": "@{concat(variables('baseUri'), '&', variables('filterQuery'))}",
+                        "uri": "[concat('https://management.azure.com/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '?api-version=2021-04-01&$expand=children')]",
                         "authentication": {
                           "type": "ActiveDirectoryOAuth",
                           "tenant": "[subscription().tenantId]",
@@ -434,43 +423,33 @@
                           "clientId": "[parameters('servicePrincipalClientId')]",
                           "secret": "[parameters('servicePrincipalClientSecret')]"
                         }
-                      },
-                      "runAfter": {
-                        "Initialize_Filter_Query": [
-                          "Succeeded"
-                        ]
                       }
                     },
-                    "Parse_JSON": {
+                    "Parse_Current_Subscriptions": {
                       "type": "ParseJson",
                       "inputs": {
-                        "content": "@body('HTTP')",
+                        "content": "@body('Get_Current_Subscriptions')",
                         "schema": {
                           "type": "object",
                           "properties": {
-                            "value": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "operationName": {
+                            "properties": {
+                              "type": "object",
+                              "properties": {
+                                "children": {
+                                  "type": "array",
+                                  "items": {
                                     "type": "object",
                                     "properties": {
-                                      "value": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "type": "string"
+                                      },
+                                      "displayName": {
                                         "type": "string"
                                       }
                                     }
-                                  },
-                                  "status": {
-                                    "type": "object",
-                                    "properties": {
-                                      "value": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  },
-                                  "resourceId": {
-                                    "type": "string"
                                   }
                                 }
                               }
@@ -479,41 +458,112 @@
                         }
                       },
                       "runAfter": {
-                        "HTTP": [
+                        "Get_Current_Subscriptions": [
                           "Succeeded"
                         ]
                       }
                     },
-                    "For_each": {
+                    "Filter_Subscriptions": {
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_Current_Subscriptions')?['properties']?['children']",
+                        "where": "@equals(item()?['type'], '/subscriptions')"
+                      },
+                      "runAfter": {
+                        "Parse_Current_Subscriptions": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Initialize_Current_Sub_List": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "currentSubscriptions",
+                            "type": "array",
+                            "value": "@body('Filter_Subscriptions')"
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "Filter_Subscriptions": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Get_Previous_State": {
+                      "type": "Http",
+                      "inputs": {
+                        "method": "GET",
+                        "uri": "[concat('https://', parameters('storageAccountName'), '.table.core.windows.net/managementgroupstate(PartitionKey=''', parameters('managementGroupId'), ''',RowKey=''subscriptions'')')]",
+                        "authentication": {
+                          "type": "ActiveDirectoryOAuth",
+                          "tenant": "[subscription().tenantId]",
+                          "audience": "https://storage.azure.com/",
+                          "clientId": "[parameters('servicePrincipalClientId')]",
+                          "secret": "[parameters('servicePrincipalClientSecret')]"
+                        }
+                      },
+                      "runAfter": {
+                        "Initialize_Current_Sub_List": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Parse_Previous_State": {
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Get_Previous_State')",
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "subscriptionIds": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Previous_State": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      }
+                    },
+                    "Initialize_Previous_Subs": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "previousSubscriptions",
+                            "type": "array",
+                            "value": "@if(empty(body('Parse_Previous_State')?['subscriptionIds']), createArray(), split(body('Parse_Previous_State')?['subscriptionIds'], ','))"
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "Parse_Previous_State": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Check_For_New_Subscriptions": {
                       "type": "Foreach",
-                      "foreach": "@body('Parse_JSON')?['value']",
+                      "foreach": "@variables('currentSubscriptions')",
                       "actions": {
-                        "Condition": {
+                        "Check_If_New": {
                           "type": "If",
                           "expression": {
-                            "and": [
-                              {
-                                "equals": [
-                                  "@items('For_each')?['status']?['value']",
-                                  "Succeeded"
-                                ]
-                              },
-                              {
-                                "equals": [
-                                  "@items('For_each')?['resourceProviderName']?['value']",
-                                  "Microsoft.Management"
-                                ]
-                              },
-                              {
-                                "equals": [
-                                  "@items('For_each')?['operationName']?['value']",
-                                  "Microsoft.Management/managementGroups/subscriptions/write"
-                                ]
-                              }
-                            ]
+                            "not": {
+                              "contains": [
+                                "@variables('previousSubscriptions')",
+                                "@items('Check_For_New_Subscriptions')?['name']"
+                              ]
+                            }
                           },
                           "actions": {
-                            "HTTP_Webhook": {
+                            "Send_Webhook_For_New_Subscription": {
                               "type": "Http",
                               "inputs": {
                                 "method": "POST",
@@ -522,8 +572,13 @@
                                   "Content-Type": "application/json"
                                 },
                                 "body": {
+                                  "eventType": "ManagementGroupSubscriptionAdded",
                                   "managementGroupId": "[parameters('managementGroupId')]",
-                                  "event": "@items('For_each')"
+                                  "subscriptionId": "@items('Check_For_New_Subscriptions')?['name']",
+                                  "subscriptionDisplayName": "@items('Check_For_New_Subscriptions')?['displayName']",
+                                  "eventTimestamp": "@utcNow()",
+                                  "detectedBy": "LogicApp",
+                                  "subscription": "@items('Check_For_New_Subscriptions')"
                                 }
                               }
                             }
@@ -531,7 +586,35 @@
                         }
                       },
                       "runAfter": {
-                        "Parse_JSON": [
+                        "Initialize_Previous_Subs": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Update_State": {
+                      "type": "Http",
+                      "inputs": {
+                        "method": "PUT",
+                        "uri": "[concat('https://', parameters('storageAccountName'), '.table.core.windows.net/managementgroupstate(PartitionKey=''', parameters('managementGroupId'), ''',RowKey=''subscriptions'')')]",
+                        "headers": {
+                          "Content-Type": "application/json"
+                        },
+                        "body": {
+                          "PartitionKey": "[parameters('managementGroupId')]",
+                          "RowKey": "subscriptions",
+                          "subscriptionIds": "@join(select(variables('currentSubscriptions'), item()?['name']), ',')",
+                          "lastUpdated": "@utcNow()"
+                        },
+                        "authentication": {
+                          "type": "ActiveDirectoryOAuth",
+                          "tenant": "[subscription().tenantId]",
+                          "audience": "https://storage.azure.com/",
+                          "clientId": "[parameters('servicePrincipalClientId')]",
+                          "secret": "[parameters('servicePrincipalClientSecret')]"
+                        }
+                      },
+                      "runAfter": {
+                        "Check_For_New_Subscriptions": [
                           "Succeeded"
                         ]
                       }
@@ -539,6 +622,16 @@
                   }
                 }
               }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+              "apiVersion": "2021-09-01",
+              "name": "[concat(parameters('storageAccountName'), '/default/managementgroupstate')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ],
+              "properties": {}
             }
           ],
           "outputs": {
