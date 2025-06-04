@@ -134,7 +134,7 @@
             "name": "ffUrl",
             "type": "Microsoft.Common.TextBox",
             "label": "Firefly API URL",
-            "defaultValue": "https://api.firefly.ai",
+            "defaultValue": "https://api-eu.stag.firefly.ai",
             "toolTip": "Enter your Firefly API URL. Default is the production environment.",
             "constraints": {
               "required": true,

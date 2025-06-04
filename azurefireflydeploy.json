@@ -30,7 +30,7 @@
     },
     "fireflyUrl": {
       "type": "string",
-      "defaultValue": "https://api.firefly.ai",
+      "defaultValue": "https://api-eu.stag.firefly.ai",
       "metadata": { "description": "Firefly API URL" }
     },
     "fireflyAccessKey": {
@@ -162,7 +162,7 @@
           { "name": "DIRECTORY_DOMAIN",    "value": "[parameters('directoryDomain')]" },
           { "name": "NAME_PATTERN",        "value": "[parameters('integrationNamePattern')]" }
         ],
-        "scriptContent": "foreach ($sub in $Env:SUBSCRIPTIONS_LIST -split ',') { $tokenResp=(Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$Env:FIREFLY_URL/api/account/access_keys/login\" -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content|ConvertFrom-Json; $jwt=$tokenResp.access_token; if(-not $jwt){Write-Error 'Auth failed';exit 1}; $integrationName=$Env:NAME_PATTERN.Replace('{subscriptionId}',$sub); $intResp=Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$Env:FIREFLY_URL/api/integrations/azure/\" -Headers @{Authorization=\"Bearer $jwt\"} -Body (@{subscriptionId=$sub;tenantId=$Env:TENANT_ID;applicationId=$Env:CLIENT_ID;clientSecret=$Env:CLIENT_SECRET;name=$integrationName;directoryDomain=$Env:DIRECTORY_DOMAIN;isProd=$false;isAutoDiscover=$true}|ConvertTo-Json); if($intResp.StatusCode -ne 200){Write-Error \"Integration failed for $sub\";exit 1} }"
+        "scriptContent": "foreach ($sub in $Env:SUBSCRIPTIONS_LIST -split ',') { $tokenResp=(Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$Env:FIREFLY_URL/api/account/access_keys/login\" -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content|ConvertFrom-Json; $jwt=$tokenResp.access_token; if(-not $jwt){Write-Error 'Auth failed';exit 1}; $integrationName=$Env:NAME_PATTERN.Replace('{subscriptionId}',$sub); $intResp=Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$Env:FIREFLY_URL/api/integrations/azure?onConflictUpdate=true\" -Headers @{Authorization=\"Bearer $jwt\"} -Body (@{subscriptionId=$sub;tenantId=$Env:TENANT_ID;applicationId=$Env:CLIENT_ID;clientSecret=$Env:CLIENT_SECRET;name=$integrationName;directoryDomain=$Env:DIRECTORY_DOMAIN;isProd=$false;isAutoDiscover=$true}|ConvertTo-Json); if($intResp.StatusCode -ne 200){Write-Error \"Integration failed for $sub\";exit 1} }"
       }
     }
   ],
