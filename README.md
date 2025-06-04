@@ -65,9 +65,8 @@ Before deploying, ensure you have:
 
 Deploy directly to Azure using the button below:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2FINFL-0406251%2Fazurefireflydeploy.
-/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2FINFL-0406251%2FCreateUIDefinition.json
-)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2FINFL-0406251%2Fazurefireflydeploy.json
+/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2FINFL-0406251%2FCreateUIDefinition.json)
 
 ### Option 2: Management Group-Level Deployment
 
