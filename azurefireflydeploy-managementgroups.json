@@ -47,6 +47,11 @@
       "type": "securestring",
       "metadata": { "description": "Firefly secret key" }
     },
+    "fireflyUrl": {
+      "type": "string",
+      "defaultValue": "https://api.firefly.ai",
+      "metadata": { "description": "Firefly API URL" }
+    },
     "directoryDomain": {
       "type": "string",
       "metadata": { "description": "Your organization's domain (e.g., yourcompany.com)" }
@@ -58,7 +63,7 @@
     },
     "fireflyWebhookUrl": {
       "type": "string",
-      "defaultValue": "https://azureevents-env1.dev.firefly.ai",
+      "defaultValue": "https://azure-events.firefly.ai",
       "metadata": { "description": "Firefly webhook URL for event notifications" }
     },
     "storageAccountName": {
@@ -169,6 +174,9 @@
           "fireflySecretKey": {
               "value": "[parameters('fireflySecretKey')]"
           },
+          "fireflyUrl": {
+              "value": "[parameters('fireflyUrl')]"
+          },
           "directoryDomain": {
               "value": "[parameters('directoryDomain')]"
           },
@@ -219,6 +227,9 @@
               "fireflySecretKey": {
                   "type": "securestring"
               },
+              "fireflyUrl": {
+                  "type": "string"
+              },
               "directoryDomain": {
                   "type": "string"
               },
@@ -263,11 +274,12 @@
                   { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
                   { "name": "FIREFLY_ACCESS_KEY",   "secureValue": "[parameters('fireflyAccessKey')]" },
                   { "name": "FIREFLY_SECRET_KEY",   "secureValue": "[parameters('fireflySecretKey')]" },
+                  { "name": "FIREFLY_URL",          "value": "[parameters('fireflyUrl')]" },
                   { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
                   { "name": "SUBSCRIPTION_ID",       "value": "[parameters('subscriptionIdForDeployment')]" },
                   { "name": "DIRECTORY_DOMAIN",      "value": "[parameters('directoryDomain')]" }
                 ],
-                "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n$successCount = 0\n$failedSubscriptions = @()\n$createdSubscriptions = @()\n\n# Process each subscription\nforeach ($subId in $allSubscriptionIds) {\n    # Get subscription details to retrieve display name\n    try {\n        $subscription = Get-AzSubscription -SubscriptionId $subId -ErrorAction Stop\n        $subscriptionDisplayName = $subscription.Name\n    } catch {\n        Write-Warning \"Could not retrieve subscription details for $subId. Using ID as name.\"\n        $subscriptionDisplayName = $subId\n    }\n    \n    Write-Host \"Creating integration for subscription: $subscriptionDisplayName ($subId)\"\n    \n    $bodyObj = [ordered]@{\n        subscriptionId = $subId\n        tenantId = $Env:TENANT_ID\n        applicationId = $Env:CLIENT_ID\n        clientSecret = $Env:CLIENT_SECRET\n        name = $subscriptionDisplayName\n        directoryDomain = $Env:DIRECTORY_DOMAIN\n        isAutoDiscover = $true\n    }\n    \n    $body = $bodyObj | ConvertTo-Json -Compress\n    \n    try {\n        $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/integrations/azure/' -Headers $headers -Body $body\n        \n        if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n            Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n            $successCount++\n            $createdSubscriptions += $subId\n        } else {\n            Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n            $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n        }\n    } catch {\n        Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n        \n        if ($_.Exception.Response) {\n            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())\n            $reader.BaseStream.Position = 0\n            $reader.DiscardBufferedData()\n            $responseBody = $reader.ReadToEnd()\n            Write-Host \"Response body: $responseBody\"\n        }\n        \n        $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n    }\n}\n\nWrite-Host \"`nSummary:\"\nWrite-Host \"Successfully created integrations: $successCount\"\nWrite-Host \"Failed integrations: $($failedSubscriptions.Count)\"\n\nif ($failedSubscriptions.Count -gt 0) {\n    Write-Host \"Failed subscriptions:\"\n    $failedSubscriptions | ForEach-Object { Write-Host \" - $($_.Name) ($($_.Id))\" }\n}\n\n# Exit with error if all subscriptions failed\nif ($successCount -eq 0 -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"All subscription integrations failed\"\n    exit 1\n}\n\n# Return created subscription IDs for event monitoring setup\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['createdSubscriptions'] = $createdSubscriptions -join ','\n\nWrite-Host \"Integration process completed\""
+                "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$Env:FIREFLY_URL/api/account/access_keys/login\" -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n$successCount = 0\n$failedSubscriptions = @()\n$createdSubscriptions = @()\n\n# Process each subscription\nforeach ($subId in $allSubscriptionIds) {\n    # Get subscription details to retrieve display name\n    try {\n        $subscription = Get-AzSubscription -SubscriptionId $subId -ErrorAction Stop\n        $subscriptionDisplayName = $subscription.Name\n    } catch {\n        Write-Warning \"Could not retrieve subscription details for $subId. Using ID as name.\"\n        $subscriptionDisplayName = $subId\n    }\n    \n    Write-Host \"Creating integration for subscription: $subscriptionDisplayName ($subId)\"\n    \n    $bodyObj = [ordered]@{\n        subscriptionId = $subId\n        tenantId = $Env:TENANT_ID\n        applicationId = $Env:CLIENT_ID\n        clientSecret = $Env:CLIENT_SECRET\n        name = $subscriptionDisplayName\n        directoryDomain = $Env:DIRECTORY_DOMAIN\n        isAutoDiscover = $true\n    }\n    \n    $body = $bodyObj | ConvertTo-Json -Compress\n    \n    try {\n        $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri \"$Env:FIREFLY_URL/api/integrations/azure/\" -Headers $headers -Body $body\n        \n        if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n            Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n            $successCount++\n            $createdSubscriptions += $subId\n        } else {\n            Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n            $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n        }\n    } catch {\n        Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n        \n        if ($_.Exception.Response) {\n            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())\n            $reader.BaseStream.Position = 0\n            $reader.DiscardBufferedData()\n            $responseBody = $reader.ReadToEnd()\n            Write-Host \"Response body: $responseBody\"\n        }\n        \n        $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n    }\n}\n\nWrite-Host \"`nSummary:\"\nWrite-Host \"Successfully created integrations: $successCount\"\nWrite-Host \"Failed integrations: $($failedSubscriptions.Count)\"\n\nif ($failedSubscriptions.Count -gt 0) {\n    Write-Host \"Failed subscriptions:\"\n    $failedSubscriptions | ForEach-Object { Write-Host \" - $($_.Name) ($($_.Id))\" }\n}\n\n# Exit with error if all subscriptions failed\nif ($successCount -eq 0 -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"All subscription integrations failed\"\n    exit 1\n}\n\n# Return created subscription IDs for event monitoring setup\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['createdSubscriptions'] = $createdSubscriptions -join ','\n\nWrite-Host \"Integration process completed\""
               }
             },
             {
@@ -563,24 +575,26 @@
                             }
                           },
                           "actions": {
-                            "Authenticate_With_Firefly": {
+                            "Authenticate_to_Firefly": {
                               "type": "Http",
                               "inputs": {
                                 "method": "POST",
-                                "uri": "https://api-env1.dev.firefly.ai/api/account/access_keys/login",
-                                "headers": {
-                                  "Content-Type": "application/json"
-                                },
+                                "uri": "[concat(parameters('fireflyUrl'), '/api/account/access_keys/login')]",
                                 "body": {
                                   "accessKey": "[parameters('fireflyAccessKey')]",
                                   "secretKey": "[parameters('fireflySecretKey')]"
                                 }
+                              },
+                              "runAfter": {
+                                "For_Each_New_Subscription": [
+                                  "Succeeded"
+                                ]
                               }
                             },
-                            "Parse_Firefly_Auth": {
+                            "Parse_Auth_Response": {
                               "type": "ParseJson",
                               "inputs": {
-                                "content": "@body('Authenticate_With_Firefly')",
+                                "content": "@body('Authenticate_to_Firefly')",
                                 "schema": {
                                   "type": "object",
                                   "properties": {
@@ -591,7 +605,7 @@
                                 }
                               },
                               "runAfter": {
-                                "Authenticate_With_Firefly": [
+                                "Authenticate_to_Firefly": [
                                   "Succeeded"
                                 ]
                               }
@@ -600,10 +614,9 @@
                               "type": "Http",
                               "inputs": {
                                 "method": "POST",
-                                "uri": "https://api-env1.dev.firefly.ai/api/integrations/azure/",
+                                "uri": "[concat(parameters('fireflyUrl'), '/api/integrations/azure/')]",
                                 "headers": {
-                                  "Content-Type": "application/json",
-                                  "Authorization": "Bearer @{body('Parse_Firefly_Auth')?['access_token']}"
+                                  "Authorization": "Bearer @{body('Parse_Auth_Response')?['access_token']}"
                                 },
                                 "body": {
                                   "subscriptionId": "@items('Check_For_New_Subscriptions')?['name']",
@@ -616,7 +629,7 @@
                                 }
                               },
                               "runAfter": {
-                                "Parse_Firefly_Auth": [
+                                "Parse_Auth_Response": [
                                   "Succeeded"
                                 ]
                               }
@@ -718,4 +731,4 @@
       "value":"[if(parameters('eventDrivenEnabled'), concat('firefly-mg-monitor-', parameters('newguid')), '')]"
     }
   }
-} 
+}

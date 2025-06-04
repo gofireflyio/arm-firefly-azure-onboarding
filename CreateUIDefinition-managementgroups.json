@@ -144,6 +144,18 @@
         "label": "Firefly Credentials",
         "elements": [
           {
+            "name": "ffUrl",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Firefly API URL",
+            "defaultValue": "https://api-env1.dev.firefly.ai",
+            "toolTip": "Enter your Firefly API URL. Default is the production environment.",
+            "constraints": {
+              "required": true,
+              "regex": "^https?://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(?:/.*)?$",
+              "validationMessage": "Must be a valid URL starting with http:// or https://"
+            }
+          },
+          {
             "name": "ffAccessKey",
             "type": "Microsoft.Common.PasswordBox",
             "label": {
@@ -151,7 +163,7 @@
                 "confirmPassword": "Re-enter Firefly Access Key"
             },
             "toolTip": "Enter your Firefly Access Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Access Key is required"
@@ -168,7 +180,7 @@
                 "confirmPassword": "Re-enter Firefly Secret Key"
             },
             "toolTip": "Enter your Firefly Secret Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Secret Key is required"
@@ -187,11 +199,10 @@
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
+      "fireflyUrl": "[steps('fireflyCredentials').ffUrl]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "directoryDomain": "[steps('integrationConfig').directoryDomain]"
     }
   }
-} 
-
-
+}
