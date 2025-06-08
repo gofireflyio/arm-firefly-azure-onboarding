@@ -73,6 +73,52 @@
       "defaultValue": "[concat('Firefly-', uniqueString(parameters('subscriptionIdForDeployment')))]",
       "metadata": { "description": "Name for the custom Firefly role definition" }
     },
+    "prefix": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Prefix for resource naming" }
+    },
+    "suffix": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Suffix for resource naming" }
+    },
+    "enforceStorageNetworkRules": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": { "description": "Enforce storage network rules to restrict access to Firefly IPs only" }
+    },
+    "fireflyEips": {
+      "type": "array",
+      "defaultValue": [
+        "3.224.145.192",
+        "54.83.245.177",
+        "3.213.167.195",
+        "54.146.252.237",
+        "34.226.97.113"
+      ],
+      "metadata": { "description": "Firefly IP addresses for storage account network rules" }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": { "description": "Tags to apply to created resources" }
+    },
+    "createResourceProviderRegistration": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Create microsoft.insights resource provider registration" }
+    },
+    "isProd": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": { "description": "Is this a production environment" }
+    },
+    "autoDiscoverEnabled": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Enable auto-discovery of subscriptions" }
+    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -81,7 +127,10 @@
       }
     }
   },
-  "variables": {},
+  "variables": {
+    "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
+    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+  },
   "resources": [
     {
       "type": "Microsoft.Authorization/roleAssignments",
@@ -193,6 +242,30 @@
           "customRoleName": {
               "value": "[parameters('customRoleName')]"
           },
+          "prefix": {
+              "value": "[parameters('prefix')]"
+          },
+          "suffix": {
+              "value": "[parameters('suffix')]"
+          },
+          "enforceStorageNetworkRules": {
+              "value": "[parameters('enforceStorageNetworkRules')]"
+          },
+          "fireflyEips": {
+              "value": "[parameters('fireflyEips')]"
+          },
+          "tags": {
+              "value": "[parameters('tags')]"
+          },
+          "createResourceProviderRegistration": {
+              "value": "[parameters('createResourceProviderRegistration')]"
+          },
+          "isProd": {
+              "value": "[parameters('isProd')]"
+          },
+          "autoDiscoverEnabled": {
+              "value": "[parameters('autoDiscoverEnabled')]"
+          },
           "newguid": {
               "value": "[parameters('newguid')]"
           }
@@ -243,6 +316,30 @@
               },
               "customRoleName": {
                   "type": "string"
+              },
+              "prefix": {
+                  "type": "string"
+              },
+              "suffix": {
+                  "type": "string"
+              },
+              "enforceStorageNetworkRules": {
+                  "type": "bool"
+              },
+              "fireflyEips": {
+                  "type": "array"
+              },
+              "tags": {
+                  "type": "object"
+              },
+              "createResourceProviderRegistration": {
+                  "type": "bool"
+              },
+              "isProd": {
+                  "type": "bool"
+              },
+              "autoDiscoverEnabled": {
+                  "type": "bool"
               },
               "newguid": {
                   "type": "string"
