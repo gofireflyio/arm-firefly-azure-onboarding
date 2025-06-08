@@ -122,24 +122,6 @@
         ]
       },
       {
-        "name": "integrationConfig",
-        "label": "Integration Configuration",
-        "elements": [
-          {
-            "name": "directoryDomain",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Directory Domain",
-            "toolTip": "Your organization's domain (e.g., yourcompany.com). This should match your Azure AD domain.",
-            "placeholder": "yourcompany.com",
-            "constraints": {
-              "required": true,
-              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_.]+[a-zA-Z0-9]$",
-              "validationMessage": "Must be a valid domain name"
-            }
-          }
-        ]
-      },
-      {
         "name": "fireflyCredentials",
         "label": "Firefly Credentials",
         "elements": [
@@ -188,8 +170,7 @@
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
-      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
-      "directoryDomain": "[steps('integrationConfig').directoryDomain]"
+      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]"
     }
   }
 } 
