@@ -251,87 +251,28 @@
     },
     {
       "condition": "[parameters('eventDrivenEnabled')]",
-      "copy": {
-        "name": "diagnosticSettingsLoop",
-        "count": "[length(parameters('subscriptionsList'))]",
-        "mode": "Parallel"
-      },
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-diag-settings-', parameters('newguid'), '-', copyIndex())]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
       "location": "[parameters('location')]",
+      "kind": "AzurePowerShell",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
       ],
       "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "storageAccountId": {
-              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-          },
-          "servicePrincipalClientId": {
-              "value": "[parameters('servicePrincipalClientId')]"
-          },
-          "servicePrincipalClientSecret": {
-              "value": "[parameters('servicePrincipalClientSecret')]"
-          },
-          "subscriptionId": {
-              "value": "[parameters('subscriptionsList')[copyIndex()]]"
-          },
-          "newguid": {
-              "value": "[parameters('newguid')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-              "storageAccountId": {
-                  "type": "string"
-              },
-              "servicePrincipalClientId": {
-                  "type": "string"
-              },
-              "servicePrincipalClientSecret": {
-                  "type": "securestring"
-              },
-              "subscriptionId": {
-                  "type": "string"
-              },
-              "newguid": {
-                  "type": "string"
-              }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Resources/deploymentScripts",
-              "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
-              "location": "westus2",
-              "kind": "AzurePowerShell",
-              "properties": {
-                "retentionInterval": "PT1H",
-                "timeout": "PT30M",
-                "containerSettings": {},
-                "cleanupPreference": "Always",
-                "azPowerShellVersion": "8.1",
-                "environmentVariables": [
-                  { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
-                  { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
-                  { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
-                  { "name": "STORAGE_ACCOUNT_ID",    "value": "[parameters('storageAccountId')]" },
-                  { "name": "SUBSCRIPTION_ID",       "value": "[parameters('subscriptionId')]" }
-                ],
-                "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\nWrite-Host \"Configuring diagnostic settings for subscription: $Env:SUBSCRIPTION_ID\"\n\ntry {\n    # Set context to the subscription\n    Set-AzContext -SubscriptionId $Env:SUBSCRIPTION_ID | Out-Null\n    \n    # Check if diagnostic setting already exists\n    $existingSettings = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$Env:SUBSCRIPTION_ID\" -ErrorAction SilentlyContinue\n    $fireflySettingExists = $false\n    \n    if ($existingSettings) {\n        foreach ($setting in $existingSettings) {\n            if ($setting.Name -like '*firefly*') {\n                Write-Host \"Firefly diagnostic setting already exists for subscription $Env:SUBSCRIPTION_ID\"\n                $fireflySettingExists = $true\n                break\n            }\n        }\n    }\n    \n    if (-not $fireflySettingExists) {\n        # Create diagnostic setting\n        $diagSettingName = \"firefly-diag-$Env:SUBSCRIPTION_ID\"\n        \n        Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$Env:SUBSCRIPTION_ID\" `\n            -Name $diagSettingName `\n            -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n            -Category 'Administrative' `\n            -Enabled $true | Out-Null\n            \n        Write-Host \"Successfully configured diagnostic settings for subscription $Env:SUBSCRIPTION_ID\"\n    }\n} catch {\n    Write-Warning \"Failed to configure diagnostic settings for subscription $Env:SUBSCRIPTION_ID : $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
-              }
-            }
-          ],
-          "outputs": {}
-        }
+        "retentionInterval": "PT1H",
+        "timeout": "PT30M",
+        "containerSettings": {},
+        "cleanupPreference": "Always",
+        "azPowerShellVersion": "8.1",
+        "environmentVariables": [
+          { "name": "SUBSCRIPTIONS_LIST", "value": "[join(parameters('subscriptionsList'), ',')]" },
+          { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
+          { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+          { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
+          { "name": "STORAGE_ACCOUNT_ID",    "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]" }
+        ],
+        "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n$successCount = 0\n$failedCount = 0\n\n# Configure diagnostic settings for each subscription\nforeach ($subId in $Env:SUBSCRIPTIONS_LIST -split ',') {\n    Write-Host \"Configuring diagnostic settings for subscription: $subId\"\n    \n    try {\n        # Set context to the subscription\n        Set-AzContext -SubscriptionId $subId | Out-Null\n        \n        # Check if diagnostic setting already exists\n        $existingSettings = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n        $fireflySettingExists = $false\n        \n        if ($existingSettings) {\n            foreach ($setting in $existingSettings) {\n                if ($setting.Name -like '*firefly*') {\n                    Write-Host \"Firefly diagnostic setting already exists for subscription $subId\"\n                    $fireflySettingExists = $true\n                    break\n                }\n            }\n        }\n        \n        if (-not $fireflySettingExists) {\n            # Create diagnostic setting\n            $diagSettingName = \"firefly-diag-$subId\"\n            \n            Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" `\n                -Name $diagSettingName `\n                -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n                -Category 'Administrative' `\n                -Enabled $true | Out-Null\n                \n            Write-Host \"Successfully configured diagnostic settings for subscription $subId\"\n            $successCount++\n        } else {\n            $successCount++\n        }\n    } catch {\n        Write-Warning \"Failed to configure diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n        $failedCount++\n    }\n}\n\nWrite-Host \"`nDiagnostic Settings Summary:\"\nWrite-Host \"Successfully configured: $successCount\"\nWrite-Host \"Failed: $failedCount\"\n\nif ($failedCount -eq ($Env:SUBSCRIPTIONS_LIST -split ',').Count -and ($Env:SUBSCRIPTIONS_LIST -split ',').Count -gt 0) {\n    Write-Error \"Failed to configure diagnostic settings for all subscriptions\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
       }
     }
   ],
