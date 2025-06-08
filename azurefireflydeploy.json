@@ -242,7 +242,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', concat('firefly-custom-roles-', parameters('newguid')))]"
+        "[concat('firefly-custom-roles-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -423,7 +423,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
-        "[resourceId('Microsoft.Resources/deployments', concat('firefly-custom-roles-', parameters('newguid')))]"
+        "[concat('firefly-custom-roles-', parameters('newguid'))]"
       ]
     },
     {
