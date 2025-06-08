@@ -68,6 +68,11 @@
       "defaultValue": "[concat('firefly-events-', parameters('newguid'))]",
       "metadata": { "description": "Name for the Event Grid system topic" }
     },
+    "customRoleName": {
+      "type": "string",
+      "defaultValue": "[concat('Firefly-', uniqueString(parameters('subscriptionIdForDeployment')))]",
+      "metadata": { "description": "Name for the custom Firefly role definition" }
+    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -185,6 +190,9 @@
           "resourceGroupName": {
               "value": "[parameters('resourceGroupName')]"
           },
+          "customRoleName": {
+              "value": "[parameters('customRoleName')]"
+          },
           "newguid": {
               "value": "[parameters('newguid')]"
           }
@@ -233,17 +241,57 @@
               "resourceGroupName": {
                   "type": "string"
               },
+              "customRoleName": {
+                  "type": "string"
+              },
               "newguid": {
                   "type": "string"
               }
           },
           "resources": [
             {
+              "type": "Microsoft.Authorization/roleDefinitions",
+              "apiVersion": "2022-04-01",
+              "name": "[guid('fireflyCustomRole', subscription().subscriptionId)]",
+              "properties": {
+                "roleName": "[parameters('customRoleName')]",
+                "description": "Firefly's requested permissions",
+                "type": "customRole",
+                "permissions": [
+                  {
+                    "actions": [
+                      "Microsoft.Storage/storageAccounts/listkeys/action",
+                      "Microsoft.DocumentDB/databaseAccounts/listConnectionStrings/action",
+                      "Microsoft.DocumentDB/databaseAccounts/listKeys/action",
+                      "Microsoft.DocumentDB/databaseAccounts/readonlykeys/action",
+                      "Microsoft.ContainerService/managedClusters/listClusterUserCredential/action",
+                      "Microsoft.Web/sites/config/list/Action",
+                      "Microsoft.Cache/redis/listKeys/action",
+                      "Microsoft.AppConfiguration/configurationStores/ListKeys/action",
+                      "Microsoft.Search/searchServices/listQueryKeys/action",
+                      "Microsoft.Search/searchServices/listAdminKeys/action",
+                      "Microsoft.Authorization/roleAssignments/read",
+                      "Microsoft.OperationalInsights/workspaces/sharedkeys/action"
+                    ],
+                    "notActions": [],
+                    "dataActions": [],
+                    "notDataActions": []
+                  }
+                ],
+                "assignableScopes": [
+                  "[subscription().id]"
+                ]
+              }
+            },
+            {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-mg-int-script-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
+              "dependsOn": [
+                "[resourceId('Microsoft.Authorization/roleDefinitions', guid('fireflyCustomRole', subscription().subscriptionId))]"
+              ],
               "properties": {
                 "retentionInterval": "PT1H",
                 "timeout": "PT30M",
@@ -337,7 +385,19 @@
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
               ]
             },
-
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2020-10-01-preview",
+              "name": "[guid('firefly custom role', subscription().subscriptionId, parameters('servicePrincipalObjectId'))]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyCustomRole', subscription().subscriptionId))]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Authorization/roleDefinitions', guid('fireflyCustomRole', subscription().subscriptionId))]"
+              ]
+            },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deploymentScripts",
@@ -365,8 +425,6 @@
                 "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$successCount = 0\n$failedCount = 0\n\n# Configure diagnostic settings for each subscription\nforeach ($subId in $allSubscriptionIds) {\n    Write-Host \"Configuring diagnostic settings for subscription: $subId\"\n    \n    try {\n        # Set context to the subscription\n        Set-AzContext -SubscriptionId $subId | Out-Null\n        \n        # Check if diagnostic setting already exists\n        $existingSettings = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n        $fireflySettingExists = $false\n        \n        if ($existingSettings) {\n            foreach ($setting in $existingSettings) {\n                if ($setting.Name -like '*firefly*') {\n                    Write-Host \"Firefly diagnostic setting already exists for subscription $subId\"\n                    $fireflySettingExists = $true\n                    break\n                }\n            }\n        }\n        \n        if (-not $fireflySettingExists) {\n            # Create diagnostic setting\n            $diagSettingName = \"firefly-diag-$subId\"\n            \n            Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" `\n                -Name $diagSettingName `\n                -StorageAccountId $Env:STORAGE_ACCOUNT_ID `\n                -Category 'Administrative' `\n                -Enabled $true | Out-Null\n                \n            Write-Host \"Successfully configured diagnostic settings for subscription $subId\"\n            $successCount++\n        } else {\n            $successCount++\n        }\n    } catch {\n        Write-Warning \"Failed to configure diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n        $failedCount++\n    }\n}\n\nWrite-Host \"`nDiagnostic Settings Summary:\"\nWrite-Host \"Successfully configured: $successCount\"\nWrite-Host \"Failed: $failedCount\"\n\nif ($failedCount -eq $allSubscriptionIds.Count -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"Failed to configure diagnostic settings for all subscriptions\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
               }
             }
-
-
           ],
           "outputs": {
             "tenantId": {
