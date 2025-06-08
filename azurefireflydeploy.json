@@ -110,6 +110,10 @@
       }
     }
   },
+  "variables": {
+    "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
+    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+  },
   "resources": [
     {
       "condition": "[parameters('createResourceProviderRegistration')]",
@@ -209,11 +213,8 @@
                   }
               }
             },
-  "variables": {
-    "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
-    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
-  },
-  "resources": [
+            "variables": {},
+            "resources": [
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2020-10-01-preview",
@@ -447,7 +448,7 @@
     "storageAccountId": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
-      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '')]"
+      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName')), '')]"
     },
     "eventGridTopicId": {
       "condition": "[parameters('eventDrivenEnabled')]",
