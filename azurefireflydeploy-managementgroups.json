@@ -380,7 +380,7 @@
                   }
                 ],
                 "assignableScopes": [
-                  "[resourceGroup().id]"
+                  "[subscription().id]"
                 ]
               }
             },
@@ -403,7 +403,7 @@
                   }
                 ],
                 "assignableScopes": [
-                  "[resourceGroup().id]"
+                  "[subscription().id]"
                 ]
               }
             },
@@ -521,7 +521,7 @@
               "apiVersion": "2020-10-01-preview",
               "name": "[guid('firefly custom role', subscription().subscriptionId, parameters('servicePrincipalObjectId'))]",
               "properties": {
-                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyCustomRole', subscription().subscriptionId))]",
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyCustomRole', subscription().subscriptionId))]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
                 "principalType": "ServicePrincipal"
               },
@@ -536,7 +536,7 @@
               "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', resourceGroup().id)]",
               "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
               "properties": {
-                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
                 "principalType": "ServicePrincipal"
               },
