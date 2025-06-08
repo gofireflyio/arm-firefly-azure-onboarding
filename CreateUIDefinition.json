@@ -63,20 +63,8 @@
               "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_.]+[a-zA-Z0-9]$",
               "validationMessage": "Must be a valid domain name"
             }
-          },
-          {
-            "name": "integrationNamePattern",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Integration Name",
-            "defaultValue": "Azure-{subscriptionId}",
-            "toolTip": "Name for the integration. Use {subscriptionId} as a placeholder for the subscription ID. Example: 'MyCompany-Azure-{subscriptionId}' or just 'Azure-{subscriptionId}'",
-            "placeholder": "Azure-{subscriptionId}",
-            "constraints": {
-              "required": false,
-              "regex": "^[a-zA-Z0-9][a-zA-Z0-9-_{}\\s]+[a-zA-Z0-9}]$",
-              "validationMessage": "Must contain only letters, numbers, hyphens, underscores, spaces, and {subscriptionId} placeholder"
-            }
           }
+
         ]
       },
       {
@@ -175,8 +163,7 @@
       "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
-      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
-      "integrationNamePattern": "[if(empty(steps('integrationConfig').integrationNamePattern), 'Azure-{subscriptionId}', steps('integrationConfig').integrationNamePattern)]"
+      "directoryDomain": "[steps('integrationConfig').directoryDomain]"
     }
   }
 }
