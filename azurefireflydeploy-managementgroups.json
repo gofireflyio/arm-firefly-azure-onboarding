@@ -467,29 +467,9 @@
                         "conditionVersion": "2.0",
                         "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))"
                       }
-                        },
-    {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Authorization/policyAssignments",
-      "apiVersion": "2022-06-01",
-      "name": "firefly-storage-diagnostics-mg-assignment",
-      "properties": {
-        "displayName": "Firefly - Auto-configure storage diagnostic settings (MG)",
-        "description": "Automatically configure diagnostic settings for all storage accounts in management group",
-        "policyDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/policyDefinitions/firefly-storage-diagnostics-policy-def')]",
-        "parameters": {
-          "storageAccountId": {
-            "value": "[reference(concat('fireflyIntDeploy-', parameters('newguid'))).outputs.storageAccountId.value]"
-          }
-        },
-        "enforcementMode": "Default"
-      },
-      "dependsOn": [
-        "[concat('fireflyIntDeploy-', parameters('newguid'))]"
-      ]
-    }
-  ],
-  "outputs": {}
+                    }
+                  ],
+                  "outputs": {}
                 }
               }
             },
@@ -573,6 +553,20 @@
                     "preferredBatchSizeInKilobytes": 64
                   }
                 },
+                "filter": {
+                  "includedEventTypes": [
+                    "Microsoft.Storage.BlobCreated",
+                    "Microsoft.Resources.ResourceWriteSuccess",
+                    "Microsoft.Resources.ResourceDeleteSuccess"
+                  ],
+                  "advancedFilters": [
+                    {
+                      "operatorType": "StringContains",
+                      "key": "subject",
+                      "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                    }
+                  ]
+                },
                 "eventDeliverySchema": "EventGridSchema",
                 "retryPolicy": {
                   "maxDeliveryAttempts": 30,
@@ -653,94 +647,6 @@
                 ],
                 "scriptContent": "# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    \n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    \n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n# Set context to deployment subscription for ARM deployment\nSet-AzContext -SubscriptionId $Env:SUBSCRIPTION_ID_FOR_DEPLOYMENT | Out-Null\n\n$successCount = 0\n$failedCount = 0\n\n# Deploy diagnostic settings for each subscription using ARM template\nforeach ($subId in $allSubscriptionIds) {\n    Write-Host \"Deploying diagnostic settings for subscription: $subId\"\n    \n    try {\n        $templateUri = 'https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/subscription-deployments/subscription-role-assigment/subscription-role-assignment.json'\n        \n        # Create diagnostic setting deployment\n        $deploymentName = \"firefly-diag-$subId-$($Env:NEWGUID.Substring(0,8))\"\n        \n        $template = @{\n            '$schema' = 'https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#'\n            'contentVersion' = '1.0.0.0'\n            'parameters' = @{\n                'storageAccountId' = @{ 'type' = 'string' }\n            }\n            'variables' = @{}\n            'resources' = @(\n                @{\n                    'type' = 'Microsoft.Insights/diagnosticSettings'\n                    'apiVersion' = '2021-05-01-preview'\n                    'name' = \"firefly-diag-$subId\"\n                    'scope' = \"/subscriptions/$subId\"\n                    'properties' = @{\n                        'storageAccountId' = '[parameters(''storageAccountId'')]'\n                        'logs' = @(\n                            @{ 'category' = 'Administrative'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'Security'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'ServiceHealth'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'Alert'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'Recommendation'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'Policy'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'Autoscale'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } },\n                            @{ 'category' = 'ResourceHealth'; 'enabled' = $true; 'retentionPolicy' = @{ 'enabled' = $false; 'days' = 0 } }\n                        )\n                    }\n                }\n            )\n            'outputs' = @{}\n        }\n        \n        $templateJson = $template | ConvertTo-Json -Depth 10 -Compress\n        $templateObject = $templateJson | ConvertFrom-Json\n        \n        New-AzSubscriptionDeployment `\n            -SubscriptionId $subId `\n            -Name $deploymentName `\n            -Location 'eastus' `\n            -TemplateObject $templateObject `\n            -storageAccountId $Env:STORAGE_ACCOUNT_ID `\n            -ErrorAction Stop | Out-Null\n            \n        Write-Host \"Successfully deployed diagnostic settings for subscription $subId\"\n        $successCount++\n    } catch {\n        Write-Warning \"Failed to deploy diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n        $failedCount++\n    }\n}\n\nWrite-Host \"`nDiagnostic Settings Summary:\"\nWrite-Host \"Successfully configured: $successCount\"\nWrite-Host \"Failed: $failedCount\"\n\nif ($failedCount -eq $allSubscriptionIds.Count -and $allSubscriptionIds.Count -gt 0) {\n    Write-Warning \"Failed to configure diagnostic settings for all subscriptions, but continuing deployment\"\n} else {\n    Write-Host \"Diagnostic settings configuration completed successfully\"\n}"
               }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Authorization/policyDefinitions",
-              "apiVersion": "2021-06-01",
-              "name": "firefly-storage-diagnostics-policy-def",
-              "properties": {
-                "displayName": "Firefly - Configure diagnostic settings for storage accounts",
-                "description": "Automatically configure diagnostic settings for storage accounts to send logs to Firefly storage account",
-                "policyType": "Custom",
-                "mode": "All",
-                "parameters": {
-                  "storageAccountId": {
-                    "type": "String",
-                    "metadata": {
-                      "description": "The storage account resource ID where logs will be sent"
-                    }
-                  }
-                },
-                "policyRule": {
-                  "if": {
-                    "field": "type",
-                    "equals": "Microsoft.Storage/storageAccounts"
-                  },
-                  "then": {
-                    "effect": "deployIfNotExists",
-                    "details": {
-                      "type": "Microsoft.Insights/diagnosticSettings",
-                      "name": "firefly-storage-diagnostics",
-                      "existenceCondition": {
-                        "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
-                        "equals": "[parameters('storageAccountId')]"
-                      },
-                      "roleDefinitionIds": [
-                        "/providers/microsoft.authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa",
-                        "/providers/microsoft.authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293"
-                      ],
-                      "deployment": {
-                        "properties": {
-                          "mode": "incremental",
-                          "template": {
-                            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                            "contentVersion": "1.0.0.0",
-                            "parameters": {
-                              "storageAccountId": {
-                                "type": "string"
-                              },
-                              "resourceName": {
-                                "type": "string"
-                              }
-                            },
-                            "resources": [
-                              {
-                                "type": "Microsoft.Storage/storageAccounts/providers/diagnosticSettings",
-                                "apiVersion": "2021-05-01-preview",
-                                "name": "[concat(parameters('resourceName'), '/Microsoft.Insights/firefly-storage-diagnostics')]",
-                                "properties": {
-                                  "storageAccountId": "[parameters('storageAccountId')]",
-                                  "logs": [
-                                    {
-                                      "categoryGroup": "allLogs",
-                                      "enabled": true
-                                    }
-                                  ],
-                                  "metrics": [
-                                    {
-                                      "categoryGroup": "allMetrics",
-                                      "enabled": true
-                                    }
-                                  ]
-                                }
-                              }
-                            ]
-                          },
-                          "parameters": {
-                            "storageAccountId": {
-                              "value": "[parameters('storageAccountId')]"
-                            },
-                            "resourceName": {
-                              "value": "[field('name')]"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
             }
           ],
           "outputs": {
@@ -776,16 +682,6 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
-    },
-    "policyDefinitionId": {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "string",
-      "value": "[if(parameters('eventDrivenEnabled'), concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/policyDefinitions/firefly-storage-diagnostics-policy-def'), '')]"
-    },
-    "policyAssignmentId": {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "string",
-      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Authorization/policyAssignments', 'firefly-storage-diagnostics-mg-assignment'), '')]"
     }
   }
 } 
