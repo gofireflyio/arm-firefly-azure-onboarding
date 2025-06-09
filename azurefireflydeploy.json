@@ -504,68 +504,11 @@
               "type": "Microsoft.Insights/diagnosticSettings",
               "apiVersion": "2021-05-01-preview",
               "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
-              "scope": "[concat('/subscriptions/', subscription().subscriptionId)]",
               "properties": {
                 "storageAccountId": "[parameters('storageAccountId')]",
                 "logs": [
                   {
-                    "category": "Administrative",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Security",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "ServiceHealth",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Alert",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Recommendation",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Policy",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Autoscale",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "ResourceHealth",
+                    "categoryGroup": "allLogs",
                     "enabled": true,
                     "retentionPolicy": {
                       "enabled": false,
