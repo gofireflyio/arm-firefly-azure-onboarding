@@ -603,20 +603,6 @@
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReaderConditional', subscription().subscriptionId)]",
-              "scope": "[subscription().id]",
-              "properties": {
-                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
-                "principalId": "[parameters('servicePrincipalObjectId')]",
-                "principalType": "ServicePrincipal",
-                "conditionVersion": "2.0",
-                "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))"
-              }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-monitor-diag-settings-', parameters('newguid'))]",
