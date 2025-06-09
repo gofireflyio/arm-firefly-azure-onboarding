@@ -500,25 +500,24 @@
           },
           "variables": {},
           "resources": [
-            {
-              "type": "Microsoft.Insights/diagnosticSettings",
-              "apiVersion": "2021-05-01-preview",
-              "name": "[concat('firefly-diag-', parameters('subscriptionId'))]",
-              "scope": "[concat('/subscriptions/', parameters('subscriptionId'))]",
-              "properties": {
-                "storageAccountId": "[parameters('storageAccountId')]",
-                "logs": [
-                  {
-                    "category": "Administrative",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  }
-                ]
-              }
-            }
+                         {
+               "type": "Microsoft.Insights/diagnosticSettings",
+               "apiVersion": "2021-05-01-preview",
+               "name": "[concat('firefly-diag-', parameters('subscriptionId'))]",
+               "properties": {
+                 "storageAccountId": "[parameters('storageAccountId')]",
+                 "logs": [
+                   {
+                     "category": "Administrative",
+                     "enabled": true,
+                     "retentionPolicy": {
+                       "enabled": false,
+                       "days": 0
+                     }
+                   }
+                 ]
+               }
+             }
           ],
           "outputs": {}
         }
