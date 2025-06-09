@@ -316,9 +316,9 @@
                       "description": "GUID for unique resource naming"
                   }
               }
-            },
-            "variables": {},
-            "resources": [
+          },
+          "variables": {},
+          "resources": [
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2020-10-01-preview",
@@ -391,9 +391,12 @@
       "name": "[parameters('eventGridTopicName')]",
       "location": "[parameters('location')]",
       "tags": "[variables('mergedTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+      ],
       "properties": {
-        "source": "[subscription().id]",
-        "topicType": "Microsoft.Resources.Subscriptions"
+        "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+        "topicType": "Microsoft.Storage.StorageAccounts"
       }
     },
     {
@@ -415,16 +418,7 @@
         },
         "filter": {
           "includedEventTypes": [
-            "Microsoft.Storage.BlobCreated",
-            "Microsoft.Resources.ResourceWriteSuccess",
-            "Microsoft.Resources.ResourceDeleteSuccess"
-          ],
-          "advancedFilters": [
-            {
-              "operatorType": "StringContains",
-              "key": "subject",
-              "values": ["/providers/Microsoft.Storage/storageAccounts"]
-            }
+            "Microsoft.Storage.BlobCreated"
           ]
         },
         "eventDeliverySchema": "EventGridSchema",
@@ -466,12 +460,12 @@
       ]
     },
     {
-      "condition": "[parameters('eventDrivenEnabled')]",
       "copy": {
-        "name": "diagnosticSettingsLoop",
-        "count": "[length(parameters('subscriptionsList'))]",
+        "name": "diagnosticSettingsCopy",
+        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
         "mode": "Parallel"
       },
+      "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-diag-settings-', copyIndex(), '-', parameters('newguid'))]",
@@ -491,9 +485,6 @@
           },
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
-          },
-          "newguid": {
-              "value": "[parameters('newguid')]"
           }
         },
         "template": {
@@ -504,9 +495,6 @@
                   "type": "string"
               },
               "subscriptionId": {
-                  "type": "string"
-              },
-              "newguid": {
                   "type": "string"
               }
           },
@@ -522,22 +510,6 @@
                 "logs": [
                   {
                     "category": "Administrative",
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Security", 
-                    "enabled": true,
-                    "retentionPolicy": {
-                      "enabled": false,
-                      "days": 0
-                    }
-                  },
-                  {
-                    "category": "Policy",
                     "enabled": true,
                     "retentionPolicy": {
                       "enabled": false,
