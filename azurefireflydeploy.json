@@ -413,58 +413,6 @@
             "preferredBatchSizeInKilobytes": 64
           }
         },
-        "filter": {
-          "includedEventTypes": [
-            "Microsoft.Resources.ResourceWriteSuccess",
-            "Microsoft.Resources.ResourceDeleteSuccess",
-            "Microsoft.Storage.BlobCreated",
-            "Microsoft.Storage.BlobDeleted"
-          ]
-        },
-        "eventDeliverySchema": "EventGridSchema",
-        "retryPolicy": {
-          "maxDeliveryAttempts": 30,
-          "eventTimeToLiveInMinutes": 1440
-        }
-      }
-    },
-    {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.EventGrid/systemTopics",
-      "apiVersion": "2021-12-01",
-      "name": "[concat(parameters('eventGridTopicName'), '-storage')]",
-      "location": "[parameters('location')]",
-      "tags": "[variables('mergedTags')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
-      ],
-      "properties": {
-        "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
-        "topicType": "Microsoft.Storage.StorageAccounts"
-      }
-    },
-    {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
-      "apiVersion": "2021-12-01",
-      "name": "[concat(parameters('eventGridTopicName'), '-storage/firefly-storage-webhook')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.EventGrid/systemTopics', concat(parameters('eventGridTopicName'), '-storage'))]"
-      ],
-      "properties": {
-        "destination": {
-          "endpointType": "WebHook",
-          "properties": {
-            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
-            "maxEventsPerBatch": 1,
-            "preferredBatchSizeInKilobytes": 64
-          }
-        },
-        "filter": {
-          "includedEventTypes": [
-            "Microsoft.Storage.BlobCreated"
-          ]
-        },
         "eventDeliverySchema": "EventGridSchema",
         "retryPolicy": {
           "maxDeliveryAttempts": 30,
@@ -566,6 +514,115 @@
           "outputs": {}
         }
       }
+    },
+    {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Authorization/policyDefinitions",
+      "apiVersion": "2021-06-01",
+      "name": "firefly-storage-diagnostics-policy-def",
+      "properties": {
+        "displayName": "Firefly - Configure diagnostic settings for storage accounts",
+        "description": "Automatically configure diagnostic settings for storage accounts to send logs to Firefly storage account",
+        "policyType": "Custom",
+        "mode": "All",
+        "parameters": {
+          "storageAccountId": {
+            "type": "String",
+            "metadata": {
+              "description": "The storage account resource ID where logs will be sent"
+            }
+          }
+        },
+        "policyRule": {
+          "if": {
+            "field": "type",
+            "equals": "Microsoft.Storage/storageAccounts"
+          },
+          "then": {
+            "effect": "deployIfNotExists",
+            "details": {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "name": "firefly-storage-diagnostics",
+              "existenceCondition": {
+                "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
+                "equals": "[parameters('storageAccountId')]"
+              },
+              "roleDefinitionIds": [
+                "/providers/microsoft.authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa",
+                "/providers/microsoft.authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293"
+              ],
+              "deployment": {
+                "properties": {
+                  "mode": "incremental",
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "storageAccountId": {
+                        "type": "string"
+                      },
+                      "resourceName": {
+                        "type": "string"
+                      }
+                    },
+                    "resources": [
+                      {
+                        "type": "Microsoft.Storage/storageAccounts/providers/diagnosticSettings",
+                        "apiVersion": "2021-05-01-preview",
+                        "name": "[concat(parameters('resourceName'), '/Microsoft.Insights/firefly-storage-diagnostics')]",
+                        "properties": {
+                          "storageAccountId": "[parameters('storageAccountId')]",
+                          "logs": [
+                            {
+                              "categoryGroup": "allLogs",
+                              "enabled": true
+                            }
+                          ],
+                          "metrics": [
+                            {
+                              "categoryGroup": "allMetrics",
+                              "enabled": true
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  "parameters": {
+                    "storageAccountId": {
+                      "value": "[parameters('storageAccountId')]"
+                    },
+                    "resourceName": {
+                      "value": "[field('name')]"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Authorization/policyAssignments",
+      "apiVersion": "2022-06-01",
+      "name": "firefly-storage-diagnostics-assignment",
+      "properties": {
+        "displayName": "Firefly - Auto-configure storage diagnostic settings",
+        "description": "Automatically configure diagnostic settings for all storage accounts",
+        "policyDefinitionId": "[resourceId('Microsoft.Authorization/policyDefinitions', 'firefly-storage-diagnostics-policy-def')]",
+        "parameters": {
+          "storageAccountId": {
+            "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+          }
+        },
+        "enforcementMode": "Default"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Authorization/policyDefinitions', 'firefly-storage-diagnostics-policy-def')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+      ]
     }
   ],
   "outputs": {
@@ -581,11 +638,6 @@
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
     },
-    "eventGridStorageTopicName": {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-storage'), '')]"
-    },
     "storageAccountId": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
@@ -596,10 +648,15 @@
       "type": "string",
       "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
     },
-    "eventGridStorageTopicId": {
+    "policyDefinitionId": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
-      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', concat(parameters('eventGridTopicName'), '-storage')), '')]"
+      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Authorization/policyDefinitions', 'firefly-storage-diagnostics-policy-def'), '')]"
+    },
+    "policyAssignmentId": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "string",
+      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Authorization/policyAssignments', 'firefly-storage-diagnostics-assignment'), '')]"
     }
   }
 }
