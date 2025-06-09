@@ -385,46 +385,114 @@
       }
     },
     {
+      "copy": {
+        "name": "eventGridCopy",
+        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
+        "mode": "Parallel"
+      },
       "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.EventGrid/systemTopics",
-      "apiVersion": "2021-12-01",
-      "name": "[parameters('eventGridTopicName')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-eventgrid-', copyIndex(), '-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
-      "tags": "[variables('mergedTags')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
       ],
       "properties": {
-        "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
-        "topicType": "Microsoft.Storage.StorageAccounts"
-      }
-    },
-    {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
-      "apiVersion": "2021-12-01",
-      "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
-      ],
-      "properties": {
-        "destination": {
-          "endpointType": "WebHook",
-          "properties": {
-            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
-            "maxEventsPerBatch": 1,
-            "preferredBatchSizeInKilobytes": 64
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "subscriptionId": {
+              "value": "[parameters('subscriptionsList')[copyIndex()]]"
+          },
+          "eventGridTopicName": {
+              "value": "[concat(parameters('eventGridTopicName'), '-', parameters('subscriptionsList')[copyIndex()])]"
+          },
+          "fireflyWebhookUrl": {
+              "value": "[parameters('fireflyWebhookUrl')]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "tags": {
+              "value": "[variables('mergedTags')]"
           }
         },
-        "filter": {
-          "includedEventTypes": [
-            "Microsoft.Storage.BlobCreated"
-          ]
-        },
-        "eventDeliverySchema": "EventGridSchema",
-        "retryPolicy": {
-          "maxDeliveryAttempts": 30,
-          "eventTimeToLiveInMinutes": 1440
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "subscriptionId": {
+                  "type": "string"
+              },
+              "eventGridTopicName": {
+                  "type": "string"
+              },
+              "fireflyWebhookUrl": {
+                  "type": "string"
+              },
+              "location": {
+                  "type": "string"
+              },
+              "tags": {
+                  "type": "object"
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.EventGrid/systemTopics",
+              "apiVersion": "2021-12-01",
+              "name": "[parameters('eventGridTopicName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "source": "[concat('/subscriptions/', parameters('subscriptionId'))]",
+                "topicType": "Microsoft.Resources.Subscriptions"
+              }
+            },
+            {
+              "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+              "apiVersion": "2021-12-01",
+              "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
+              ],
+              "properties": {
+                "destination": {
+                  "endpointType": "WebHook",
+                  "properties": {
+                    "endpointUrl": "[parameters('fireflyWebhookUrl')]",
+                    "maxEventsPerBatch": 1,
+                    "preferredBatchSizeInKilobytes": 64
+                  }
+                },
+                "filter": {
+                  "includedEventTypes": [
+                    "Microsoft.Storage.BlobCreated",
+                    "Microsoft.Resources.ResourceWriteSuccess",
+                    "Microsoft.Resources.ResourceDeleteSuccess"
+                  ],
+                  "advancedFilters": [
+                    {
+                      "operatorType": "StringContains",
+                      "key": "subject",
+                      "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                    }
+                  ]
+                },
+                "eventDeliverySchema": "EventGridSchema",
+                "retryPolicy": {
+                  "maxDeliveryAttempts": 30,
+                  "eventTimeToLiveInMinutes": 1440
+                }
+              }
+            }
+          ],
+          "outputs": {}
         }
       }
     },
@@ -535,17 +603,17 @@
     "eventGridTopicName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-multi-subscription'), '')]"
     },
     "storageAccountId": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
       "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName')), '')]"
     },
-    "eventGridTopicId": {
+    "eventGridTopicsDeployed": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
-      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
+      "value": "[if(parameters('eventDrivenEnabled'), string(length(parameters('subscriptionsList'))), '0')]"
     }
   }
 }
