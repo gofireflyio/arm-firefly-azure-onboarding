@@ -531,6 +531,50 @@
               "name": "[parameters('eventGridTopicName')]",
               "location": "[parameters('location')]",
               "tags": "[variables('mergedTags')]",
+              "properties": {
+                "source": "[subscription().id]",
+                "topicType": "Microsoft.Resources.Subscriptions"
+              }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+              "apiVersion": "2021-12-01",
+              "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
+              ],
+              "properties": {
+                "destination": {
+                  "endpointType": "WebHook",
+                  "properties": {
+                    "endpointUrl": "[parameters('fireflyWebhookUrl')]",
+                    "maxEventsPerBatch": 1,
+                    "preferredBatchSizeInKilobytes": 64
+                  }
+                },
+                "filter": {
+                  "includedEventTypes": [
+                    "Microsoft.Resources.ResourceWriteSuccess",
+                    "Microsoft.Resources.ResourceDeleteSuccess",
+                    "Microsoft.Storage.BlobCreated",
+                    "Microsoft.Storage.BlobDeleted"
+                  ]
+                },
+                "eventDeliverySchema": "EventGridSchema",
+                "retryPolicy": {
+                  "maxDeliveryAttempts": 30,
+                  "eventTimeToLiveInMinutes": 1440
+                }
+              }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.EventGrid/systemTopics",
+              "apiVersion": "2021-12-01",
+              "name": "[concat(parameters('eventGridTopicName'), '-storage')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('mergedTags')]",
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
               ],
@@ -543,9 +587,9 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
               "apiVersion": "2021-12-01",
-              "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
+              "name": "[concat(parameters('eventGridTopicName'), '-storage/firefly-storage-webhook')]",
               "dependsOn": [
-                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
+                "[resourceId('Microsoft.EventGrid/systemTopics', concat(parameters('eventGridTopicName'), '-storage'))]"
               ],
               "properties": {
                 "destination": {
@@ -657,6 +701,11 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
+            },
+            "eventGridStorageTopicId": {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "string",
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', concat(parameters('eventGridTopicName'), '-storage')), '')]"
             }
           }
         }
@@ -676,6 +725,11 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+    },
+    "eventGridStorageTopicName": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type":"string",
+      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-storage'), '')]"
     }
   }
 } 

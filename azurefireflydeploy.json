@@ -581,6 +581,11 @@
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
     },
+    "eventGridStorageTopicName": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type":"string",
+      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-storage'), '')]"
+    },
     "storageAccountId": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
