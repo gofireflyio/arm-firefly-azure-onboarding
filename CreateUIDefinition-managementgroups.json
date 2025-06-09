@@ -75,6 +75,23 @@
     ],
     "steps": [
       {
+        "name": "integrationConfig",
+        "type": "Microsoft.Common.Section",
+        "label": "Integration Configuration",
+        "elements": [
+          {
+            "name": "isProd",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Production Environment",
+            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create storage accounts, event grid topics, and diagnostic settings for real-time monitoring.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
         "name": "servicePrincipal",
         "label": "Service Principal",
         "elements": [
@@ -170,7 +187,8 @@
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
-      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]"
+      "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "isProd": "[steps('integrationConfig').isProd]"
     }
   }
 } 
