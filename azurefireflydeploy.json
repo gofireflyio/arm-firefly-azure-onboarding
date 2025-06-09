@@ -481,7 +481,7 @@
         },
         "parameters": {
           "storageAccountId": {
-              "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+              "value": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Storage/storageAccounts/', variables('computedStorageAccountName'))]"
           },
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
