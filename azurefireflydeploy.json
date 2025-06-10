@@ -107,6 +107,16 @@
       "defaultValue": "firefly.ai",
       "metadata": { "description": "Directory domain for Firefly integration" }
     },
+    "autoCreateResourceGroup": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": { "description": "Automatically create a resource group for multi-subscription deployments" }
+    },
+    "autoResourceGroupName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Name for the automatically created resource group" }
+    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -120,6 +130,63 @@
     "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
   },
   "resources": [
+    {
+      "condition": "[parameters('autoCreateResourceGroup')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-auto-rg-', parameters('newguid'))]",
+      "subscriptionId": "[subscription().subscriptionId]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "autoResourceGroupName": {
+              "value": "[parameters('autoResourceGroupName')]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "tags": {
+              "value": "[variables('mergedTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "autoResourceGroupName": {
+                  "type": "String"
+              },
+              "location": {
+                  "type": "String"
+              },
+              "tags": {
+                  "type": "object"
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('autoResourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            }
+          ],
+          "outputs": {
+            "resourceGroupName": {
+              "type": "string",
+              "value": "[parameters('autoResourceGroupName')]"
+            }
+          }
+        }
+      }
+    },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
@@ -238,6 +305,9 @@
       "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
       "location": "[parameters('location')]",
       "kind": "AzurePowerShell",
+      "dependsOn": [
+        "[if(parameters('autoCreateResourceGroup'), concat('firefly-auto-rg-', parameters('newguid')), '')]"
+      ],
       "properties": {
         "retentionInterval": "PT1H",
         "timeout": "PT2M",
@@ -408,9 +478,6 @@
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
           },
-          "resourceGroupName": {
-              "value": "[concat('firefly-', uniqueString(parameters('subscriptionsList')[copyIndex()]), '-rg')]"
-          },
           "eventGridTopicName": {
               "value": "[concat(parameters('eventGridTopicName'), '-', parameters('subscriptionsList')[copyIndex()])]"
           },
@@ -431,9 +498,6 @@
               "subscriptionId": {
                   "type": "string"
               },
-              "resourceGroupName": {
-                  "type": "string"
-              },
               "eventGridTopicName": {
                   "type": "string"
               },
@@ -450,76 +514,10 @@
           "variables": {},
           "resources": [
             {
-              "type": "Microsoft.Resources/resourceGroups",
-              "apiVersion": "2021-04-01",
-              "name": "[parameters('resourceGroupName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {}
-            }
-          ],
-          "outputs": {}
-        }
-      }
-    },
-    {
-      "copy": {
-        "name": "eventGridResourcesCopy",
-        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "mode": "Parallel"
-      },
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-eventgrid-resources-', copyIndex(), '-', parameters('newguid'))]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
-      "resourceGroup": "[concat('firefly-', uniqueString(parameters('subscriptionsList')[copyIndex()]), '-rg')]",
-      "dependsOn": [
-        "[concat('firefly-eventgrid-', copyIndex(), '-', parameters('newguid'))]"
-      ],
-      "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "subscriptionId": {
-              "value": "[parameters('subscriptionsList')[copyIndex()]]"
-          },
-          "eventGridTopicName": {
-              "value": "[concat(parameters('eventGridTopicName'), '-', parameters('subscriptionsList')[copyIndex()])]"
-          },
-          "fireflyWebhookUrl": {
-              "value": "[parameters('fireflyWebhookUrl')]"
-          },
-          "tags": {
-              "value": "[variables('mergedTags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-              "subscriptionId": {
-                  "type": "string"
-              },
-              "eventGridTopicName": {
-                  "type": "string"
-              },
-              "fireflyWebhookUrl": {
-                  "type": "string"
-              },
-              "tags": {
-                  "type": "object"
-              }
-          },
-          "variables": {},
-          "resources": [
-            {
               "type": "Microsoft.EventGrid/systemTopics",
               "apiVersion": "2021-12-01",
               "name": "[parameters('eventGridTopicName')]",
-              "location": "global",
+              "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {
                 "source": "[concat('/subscriptions/', parameters('subscriptionId'))]",
@@ -667,6 +665,11 @@
   "outputs": {
     "subscriptionCount": {"type":"int","value":"[parameters('subscriptionCount')]"},
     "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
+    "autoCreatedResourceGroup": {
+      "condition": "[parameters('autoCreateResourceGroup')]",
+      "type": "string",
+      "value": "[if(parameters('autoCreateResourceGroup'), parameters('autoResourceGroupName'), '')]"
+    },
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",

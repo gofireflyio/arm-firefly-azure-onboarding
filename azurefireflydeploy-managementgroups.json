@@ -124,6 +124,16 @@
       "defaultValue": "firefly.ai",
       "metadata": { "description": "Directory domain for Firefly integration" }
     },
+    "autoCreateResourceGroup": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Automatically create a resource group for management group deployments" }
+    },
+    "autoResourceGroupName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Name for the automatically created resource group" }
+    },
     "newguid": {
       "type": "string",
       "defaultValue": "[newGuid()]",
@@ -137,6 +147,63 @@
     "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
   },
   "resources": [
+    {
+      "condition": "[parameters('autoCreateResourceGroup')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-auto-rg-mg-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "autoResourceGroupName": {
+              "value": "[if(parameters('autoCreateResourceGroup'), parameters('autoResourceGroupName'), parameters('resourceGroupName'))]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "tags": {
+              "value": "[variables('mergedTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "autoResourceGroupName": {
+                  "type": "String"
+              },
+              "location": {
+                  "type": "String"
+              },
+              "tags": {
+                  "type": "object"
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('autoResourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            }
+          ],
+          "outputs": {
+            "resourceGroupName": {
+              "type": "string",
+              "value": "[parameters('autoResourceGroupName')]"
+            }
+          }
+        }
+      }
+    },
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
@@ -197,7 +264,10 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
-      "resourceGroup": "[parameters('resourceGroupName')]",
+      "resourceGroup": "[if(parameters('autoCreateResourceGroup'), parameters('autoResourceGroupName'), parameters('resourceGroupName'))]",
+      "dependsOn": [
+        "[if(parameters('autoCreateResourceGroup'), concat('firefly-auto-rg-mg-', parameters('newguid')), '')]"
+      ],
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -673,6 +743,11 @@
     "subscriptionIdForDeployment": {"type":"string","value":"[parameters('subscriptionIdForDeployment')]"},
     "managementGroupId": {"type":"string","value":"[parameters('managementGroupId')]"},
     "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
+    "autoCreatedResourceGroup": {
+      "condition": "[parameters('autoCreateResourceGroup')]",
+      "type": "string",
+      "value": "[if(parameters('autoCreateResourceGroup'), parameters('autoResourceGroupName'), '')]"
+    },
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
