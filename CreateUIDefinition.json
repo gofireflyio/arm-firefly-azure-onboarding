@@ -3,9 +3,6 @@
   "handler": "Microsoft.Azure.CreateUIDef",
   "version": "0.1.2-preview",
   "parameters": {
-    "config": {
-      "isWizard": false
-    },
     "basics": [
       {
         "name": "projectDetailsInfo",
@@ -13,7 +10,7 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "When multiple subscriptions are selected, a new resource group will be automatically created for the Firefly deployment. For single subscription deployments, you can choose an existing resource group."
+          "text": "When multiple subscriptions are selected, a resource group will be automatically created to house the integration resources. For single subscription deployments, the resources will be created in your selected resource group."
         }
       },
       {
@@ -54,20 +51,6 @@
               "required": false
             },
             "visible": true
-          },
-          {
-            "name": "autoResourceGroupName",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Resource Group Name",
-            "placeholder": "firefly-integration",
-            "defaultValue": "[concat('firefly-integration-', substring(newGuid(), 0, 8))]",
-            "toolTip": "Name for the automatically created resource group when multiple subscriptions are selected",
-            "constraints": {
-              "required": "[greater(length(steps('integrationConfig').subscriptionsList), 1)]",
-              "regex": "^[a-zA-Z0-9._\\-\\(\\)]{1,90}$",
-              "validationMessage": "Resource group name must be 1-90 characters long and can contain alphanumeric characters, periods, underscores, hyphens, and parentheses."
-            },
-            "visible": "[greater(length(steps('integrationConfig').subscriptionsList), 1)]"
           },
           {
             "name": "isProd",
@@ -178,8 +161,7 @@
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
-      "autoCreateResourceGroup": "[greater(length(steps('integrationConfig').subscriptionsList), 1)]",
-      "autoResourceGroupName": "[if(greater(length(steps('integrationConfig').subscriptionsList), 1), steps('integrationConfig').autoResourceGroupName, '')]"
+      "resourceGroupName": "[concat('firefly-integration-', take(replace(guid(), '-', ''), 8))]"
     }
   }
 }
