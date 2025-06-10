@@ -474,7 +474,7 @@
             {
               "type": "Microsoft.Resources/resourceGroups",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-monitoring-', parameters('subscriptionId'))]",
+              "name": "firefly-monitoring-rg",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {}
@@ -482,10 +482,10 @@
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-resources-', parameters('subscriptionId'), '-', parameters('newguid'))]",
-              "resourceGroup": "[concat('firefly-monitoring-', parameters('subscriptionId'))]",
+              "name": "[concat('firefly-resources-', parameters('newguid'))]",
+              "resourceGroup": "firefly-monitoring-rg",
               "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', concat('firefly-monitoring-', parameters('subscriptionId')))]"
+                "[resourceId('Microsoft.Resources/resourceGroups', 'firefly-monitoring-rg')]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -598,10 +598,10 @@
               "apiVersion": "2021-05-01-preview",
               "name": "[concat('firefly-diag-', parameters('subscriptionId'))]",
               "dependsOn": [
-                "[concat('firefly-resources-', parameters('subscriptionId'), '-', parameters('newguid'))]"
+                "[concat('firefly-resources-', parameters('newguid'))]"
               ],
               "properties": {
-                "storageAccountId": "[concat('/subscriptions/', parameters('subscriptionId'), '/resourceGroups/firefly-monitoring-', parameters('subscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+                "storageAccountId": "[concat('/subscriptions/', parameters('subscriptionId'), '/resourceGroups/firefly-monitoring-rg/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
                 "logs": [
                   {
                     "category": "Administrative",
@@ -622,7 +622,7 @@
             },
             "storageAccountId": {
               "type": "string",
-              "value": "[concat('/subscriptions/', parameters('subscriptionId'), '/resourceGroups/firefly-monitoring-', parameters('subscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+              "value": "[concat('/subscriptions/', parameters('subscriptionId'), '/resourceGroups/firefly-monitoring-rg/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
             },
             "eventGridTopicName": {
               "type": "string",
@@ -630,7 +630,7 @@
             },
             "resourceGroupName": {
               "type": "string",
-              "value": "[concat('firefly-monitoring-', parameters('subscriptionId'))]"
+              "value": "firefly-monitoring-rg"
             }
           }
         }
