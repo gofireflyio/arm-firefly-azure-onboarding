@@ -386,6 +386,63 @@
     },
     {
       "copy": {
+        "name": "resourceGroupCopy",
+        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
+        "mode": "Parallel"
+      },
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "resourceGroupName": {
+              "value": "[resourceGroup().name]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "tags": {
+              "value": "[variables('mergedTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "resourceGroupName": {
+                  "type": "string"
+              },
+              "location": {
+                  "type": "string"
+              },
+              "tags": {
+                  "type": "object"
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            }
+          ],
+          "outputs": {}
+        }
+      }
+    },
+    {
+      "copy": {
         "name": "eventGridCopy",
         "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
         "mode": "Parallel"
@@ -397,7 +454,8 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "resourceGroup": "[resourceGroup().name]",
       "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
