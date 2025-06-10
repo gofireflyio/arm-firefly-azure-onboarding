@@ -10,7 +10,7 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "When multiple subscriptions are selected, a resource group will be automatically created to house the integration resources. For single subscription deployments, the resources will be created in your selected resource group."
+          "text": "The selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
         }
       },
       {
@@ -160,8 +160,7 @@
       "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
-      "isProd": "[steps('integrationConfig').isProd]",
-      "resourceGroupName": "[concat('firefly-integration-', take(replace(guid(), '-', ''), 8))]"
+      "isProd": "[steps('integrationConfig').isProd]"
     }
   }
 }
