@@ -403,7 +403,7 @@
         },
         "parameters": {
           "resourceGroupName": {
-              "value": "[resourceGroup().name]"
+              "value": "[concat('firefly-', uniqueString(parameters('subscriptionsList')[copyIndex()]), '-rg')]"
           },
           "location": {
               "value": "[parameters('location')]"
@@ -452,7 +452,7 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-eventgrid-', copyIndex(), '-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
-      "resourceGroup": "[resourceGroup().name]",
+      "resourceGroup": "[concat('firefly-', uniqueString(parameters('subscriptionsList')[copyIndex()]), '-rg')]",
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
         "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]"
