@@ -370,6 +370,63 @@
     },
     {
       "copy": {
+        "name": "resourceGroupsCopy",
+        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
+        "mode": "Parallel"
+      },
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+            "scope": "inner"
+        },
+        "parameters": {
+          "resourceGroupName": {
+              "value": "[concat(parameters('resourceGroupPrefix'), '-', take(parameters('subscriptionsList')[copyIndex()], 8))]"
+          },
+          "location": {
+              "value": "[parameters('location')]"
+          },
+          "tags": {
+              "value": "[variables('mergedTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+              "resourceGroupName": {
+                  "type": "string"
+              },
+              "location": {
+                  "type": "string"
+              },
+              "tags": {
+                  "type": "object"
+              }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            }
+          ],
+          "outputs": {}
+        }
+      }
+    },
+    {
+      "copy": {
         "name": "storageAccountsCopy",
         "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
         "mode": "Parallel"
@@ -380,6 +437,9 @@
       "name": "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]"
+      ],
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -431,21 +491,10 @@
           "variables": {},
           "resources": [
             {
-              "type": "Microsoft.Resources/resourceGroups",
-              "apiVersion": "2021-04-01",
-              "name": "[parameters('resourceGroupName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {}
-            },
-            {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "storageAccountDeployment",
               "resourceGroup": "[parameters('resourceGroupName')]",
-              "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
-              ],
               "properties": {
                 "mode": "Incremental",
                 "template": {
@@ -510,6 +559,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
+        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
         "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]"
       ],
       "properties": {
@@ -622,6 +672,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
+        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
         "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]",
         "[concat('firefly-custom-roles-', parameters('newguid'))]"
       ],
