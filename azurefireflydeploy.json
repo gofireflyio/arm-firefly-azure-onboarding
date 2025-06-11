@@ -143,10 +143,28 @@
               "location": "[parameters('location')]",
               "properties": {
                 "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "parameters": {
+                  "customRoleName": {
+                    "value": "[variables('uniqueCustomRoleName')]"
+                  },
+                  "servicePrincipalObjectId": {
+                    "value": "[parameters('servicePrincipalObjectId')]"
+                  },
+                  "newguid": {
+                    "value": "[parameters('newguid')]"
+                  }
+                },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
-                  "parameters": {},
+                  "parameters": {
+                    "customRoleName": { "type": "string" },
+                    "servicePrincipalObjectId": { "type": "string" },
+                    "newguid": { "type": "string" }
+                  },
                   "variables": {},
                   "resources": [
                     {
@@ -154,7 +172,7 @@
                       "apiVersion": "2022-04-01",
                       "name": "[guid('fireflyCustomRole', subscription().subscriptionId)]",
                       "properties": {
-                        "roleName": "[variables('uniqueCustomRoleName')]",
+                        "roleName": "[parameters('customRoleName')]",
                         "description": "Firefly's requested permissions",
                         "type": "customRole",
                         "permissions": [
