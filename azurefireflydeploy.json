@@ -364,13 +364,7 @@
                   "location": { "value": "[parameters('location')]" },
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
-                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
-                  "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
-                  "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
-                  "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
-                  "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
-                  "isProd": { "value": "[parameters('isProd')]" },
-                  "directoryDomain": { "value": "[parameters('directoryDomain')]" }
+                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -386,13 +380,7 @@
                     "location": { "type": "string" },
                     "uniqueEventGridTopicName": { "type": "string" },
                     "fireflyWebhookUrl": { "type": "string" },
-                    "eventDrivenEnabled": { "type": "bool" },
-                    "servicePrincipalClientId": { "type": "string" },
-                    "servicePrincipalClientSecret": { "type": "securestring" },
-                    "fireflyAccessKey": { "type": "securestring" },
-                    "fireflySecretKey": { "type": "securestring" },
-                    "isProd": { "type": "bool" },
-                    "directoryDomain": { "type": "string" }
+                    "eventDrivenEnabled": { "type": "bool" }
                   },
                   "variables": {},
                   "resources": [
@@ -492,16 +480,57 @@
                           "eventTimeToLiveInMinutes": 1440
                         }
                       }
-                    },
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2021-04-01",
+              "name": "[concat('firefly-integration-', parameters('newguid'))]",
+              "resourceGroup": "[variables('resourceGroupName')]",
+              "dependsOn": [
+                "[variables('resourceGroupName')]",
+                "[concat('firefly-roles-', parameters('newguid'))]"
+              ],
+              "properties": {
+                "mode": "Incremental",
+                "parameters": {
+                  "targetSubscriptionId": { "value": "[parameters('targetSubscriptionId')]" },
+                  "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
+                  "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
+                  "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
+                  "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
+                  "isProd": { "value": "[parameters('isProd')]" },
+                  "directoryDomain": { "value": "[parameters('directoryDomain')]" },
+                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
+                  "newguid": { "value": "[parameters('newguid')]" },
+                  "location": { "value": "[parameters('location')]" }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "targetSubscriptionId": { "type": "string" },
+                    "servicePrincipalClientId": { "type": "string" },
+                    "servicePrincipalClientSecret": { "type": "securestring" },
+                    "fireflyAccessKey": { "type": "securestring" },
+                    "fireflySecretKey": { "type": "securestring" },
+                    "isProd": { "type": "bool" },
+                    "directoryDomain": { "type": "string" },
+                    "eventDrivenEnabled": { "type": "bool" },
+                    "newguid": { "type": "string" },
+                    "location": { "type": "string" }
+                  },
+                  "variables": {},
+                  "resources": [
                     {
-                       "type": "Microsoft.Resources/deploymentScripts",
-                       "apiVersion": "2020-10-01",
-                       "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
-                       "location": "[parameters('location')]",
-                       "kind": "AzurePowerShell",
-                       "dependsOn": [
-                         "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]"
-                       ],
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
                       "properties": {
                         "retentionInterval": "PT1H",
                         "timeout": "PT2M",
