@@ -404,51 +404,25 @@
                       }
                     },
                     {
-                      "type": "Microsoft.EventGrid/systemTopics",
-                      "apiVersion": "2021-12-01",
-                      "name": "[parameters('uniqueEventGridTopicName')]",
-                      "location": "global",
-                      "tags": "[parameters('mergedTags')]",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[concat('firefly-eventgrid-setup-', parameters('newguid'))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
                       "properties": {
-                        "source": "[concat('/subscriptions/', subscription().subscriptionId)]",
-                        "topicType": "Microsoft.Resources.Subscriptions"
-                      }
-                    },
-                    {
-                      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
-                      "apiVersion": "2021-12-01",
-                      "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
-                      "dependsOn": [
-                        "[parameters('uniqueEventGridTopicName')]"
-                      ],
-                      "properties": {
-                        "destination": {
-                          "endpointType": "WebHook",
-                          "properties": {
-                            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
-                            "maxEventsPerBatch": 1,
-                            "preferredBatchSizeInKilobytes": 64
-                          }
-                        },
-                        "filter": {
-                          "includedEventTypes": [
-                            "Microsoft.Storage.BlobCreated",
-                            "Microsoft.Resources.ResourceWriteSuccess",
-                            "Microsoft.Resources.ResourceDeleteSuccess"
-                          ],
-                          "advancedFilters": [
-                            {
-                              "operatorType": "StringContains",
-                              "key": "subject",
-                              "values": ["/providers/Microsoft.Storage/storageAccounts"]
-                            }
-                          ]
-                        },
-                        "eventDeliverySchema": "EventGridSchema",
-                        "retryPolicy": {
-                          "maxDeliveryAttempts": 30,
-                          "eventTimeToLiveInMinutes": 1440
-                        }
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT5M",
+                        "containerSettings": {},
+                        "cleanupPreference": "Always",
+                        "azPowerShellVersion": "8.1",
+                        "environmentVariables": [
+                          { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" },
+                          { "name": "RESOURCE_GROUP", "value": "[resourceGroup().name]" },
+                          { "name": "TOPIC_NAME", "value": "[parameters('uniqueEventGridTopicName')]" },
+                          { "name": "WEBHOOK_URL", "value": "[parameters('fireflyWebhookUrl')]" },
+                          { "name": "TAGS", "value": "[string(parameters('mergedTags'))]" }
+                        ],
+                        "scriptContent": "# Get existing system topics for the subscription\n$existingTopics = Get-AzEventGridSystemTopic | Where-Object { $_.Source -eq \"/subscriptions/$Env:SUBSCRIPTION_ID\" }\n\nif ($existingTopics.Count -gt 0) {\n    $systemTopic = $existingTopics[0]\n    Write-Host \"Using existing system topic: $($systemTopic.Name) in resource group: $($systemTopic.ResourceGroupName)\"\n    $topicName = $systemTopic.Name\n    $topicResourceGroup = $systemTopic.ResourceGroupName\n} else {\n    Write-Host \"Creating new system topic: $Env:TOPIC_NAME\"\n    # Parse tags from string\n    $tagsObj = @{}\n    if ($Env:TAGS -and $Env:TAGS -ne '{}') {\n        $tagsData = $Env:TAGS | ConvertFrom-Json\n        $tagsData.PSObject.Properties | ForEach-Object { $tagsObj[$_.Name] = $_.Value }\n    }\n    \n    $systemTopic = New-AzEventGridSystemTopic -ResourceGroupName $Env:RESOURCE_GROUP -Name $Env:TOPIC_NAME -Source \"/subscriptions/$Env:SUBSCRIPTION_ID\" -TopicType \"Microsoft.Resources.Subscriptions\" -Location \"global\" -Tag $tagsObj\n    $topicName = $systemTopic.Name\n    $topicResourceGroup = $Env:RESOURCE_GROUP\n}\n\n# Create or update event subscription\n$subscriptionName = \"firefly-webhook\"\nWrite-Host \"Creating event subscription: $subscriptionName on topic: $topicName\"\n\n$advancedFilter = @(\n    @{\n        OperatorType = \"StringContains\"\n        Key = \"subject\"\n        Values = @(\"/providers/Microsoft.Storage/storageAccounts\")\n    }\n)\n\n$eventSubscription = New-AzEventGridSystemTopicEventSubscription -ResourceGroupName $topicResourceGroup -SystemTopicName $topicName -EventSubscriptionName $subscriptionName -EndpointType \"webhook\" -Endpoint $Env:WEBHOOK_URL -IncludedEventType @(\"Microsoft.Storage.BlobCreated\", \"Microsoft.Resources.ResourceWriteSuccess\", \"Microsoft.Resources.ResourceDeleteSuccess\") -AdvancedFilter $advancedFilter -MaxDeliveryAttempt 30 -EventTtl 1440 -MaxEventsPerBatch 1\n\nWrite-Host \"EventGrid setup completed successfully\"\nWrite-Host \"System Topic: $topicName\"\nWrite-Host \"Event Subscription: $subscriptionName\"\n\n# Output the topic name for reference\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['systemTopicName'] = $topicName\n$DeploymentScriptOutputs['systemTopicResourceGroup'] = $topicResourceGroup"
                       }
                     }
                   ]
