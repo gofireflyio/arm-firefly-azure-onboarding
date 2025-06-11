@@ -101,7 +101,6 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
       "location": "[parameters('location')]",
-      "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
       "tags": "[variables('mergedTags')]",
       "properties": {},
       "copy": {
