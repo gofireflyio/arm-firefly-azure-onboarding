@@ -434,16 +434,8 @@
                         },
                         "filter": {
                           "includedEventTypes": [
-                            "Microsoft.Storage.BlobCreated",
                             "Microsoft.Resources.ResourceWriteSuccess",
                             "Microsoft.Resources.ResourceDeleteSuccess"
-                          ],
-                          "advancedFilters": [
-                            {
-                              "operatorType": "StringContains",
-                              "key": "subject",
-                              "values": ["/providers/Microsoft.Storage/storageAccounts"]
-                            }
                           ]
                         },
                         "eventDeliverySchema": "EventGridSchema",
