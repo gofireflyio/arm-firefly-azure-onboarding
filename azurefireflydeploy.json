@@ -495,7 +495,7 @@
                     {
                       "type": "Microsoft.Insights/diagnosticSettings",
                       "apiVersion": "2021-05-01-preview",
-                      "name": "[concat('firefly-diag-', parameters('targetSubscriptionId'))]",
+                      "name": "[concat('firefly-diag-', subscription().subscriptionId)]",
                       "properties": {
                         "storageAccountId": "[parameters('storageAccountId')]",
                         "logs": [
