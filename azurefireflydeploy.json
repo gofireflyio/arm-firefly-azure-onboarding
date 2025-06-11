@@ -101,6 +101,7 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
       "location": "[parameters('location')]",
+      "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
       "tags": "[variables('mergedTags')]",
       "properties": {},
       "copy": {
@@ -113,6 +114,7 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-deployment-', copyIndex(), '-', parameters('newguid'))]",
       "location": "[parameters('location')]",
+      "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
       "dependsOn": [
         "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]"
       ],
@@ -185,6 +187,7 @@
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-roles-', parameters('newguid'))]",
               "location": "[parameters('location')]",
+              "subscriptionId": "[parameters('targetSubscriptionId')]",
               "properties": {
                 "mode": "Incremental",
                 "expressionEvaluationOptions": {
@@ -216,25 +219,126 @@
                   "variables": {},
                   "resources": [
                     {
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[concat('firefly-roles-setup-', parameters('newguid'))]",
-                      "location": "westus2",
-                      "kind": "AzurePowerShell",
+                      "type": "Microsoft.Authorization/roleDefinitions",
+                      "apiVersion": "2022-04-01",
+                      "name": "[guid('fireflyCustomRole', subscription().subscriptionId)]",
                       "properties": {
-                        "retentionInterval": "PT1H",
-                        "timeout": "PT10M",
-                        "containerSettings": {},
-                        "cleanupPreference": "Always",
-                        "azPowerShellVersion": "8.1",
-                        "environmentVariables": [
-                          { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" },
-                          { "name": "CUSTOM_ROLE_NAME", "value": "[parameters('customRoleName')]" },
-                          { "name": "SERVICE_PRINCIPAL_OBJECT_ID", "value": "[parameters('servicePrincipalObjectId')]" },
-                          { "name": "NEWGUID", "value": "[parameters('newguid')]" }
+                        "roleName": "[parameters('customRoleName')]",
+                        "description": "Firefly's requested permissions",
+                        "type": "customRole",
+                        "permissions": [
+                          {
+                            "actions": [
+                              "Microsoft.Storage/storageAccounts/listkeys/action",
+                              "Microsoft.DocumentDB/databaseAccounts/listConnectionStrings/action",
+                              "Microsoft.DocumentDB/databaseAccounts/listKeys/action",
+                              "Microsoft.DocumentDB/databaseAccounts/readonlykeys/action",
+                              "Microsoft.ContainerService/managedClusters/listClusterUserCredential/action",
+                              "Microsoft.Web/sites/config/list/Action",
+                              "Microsoft.Cache/redis/listKeys/action",
+                              "Microsoft.AppConfiguration/configurationStores/ListKeys/action",
+                              "Microsoft.Search/searchServices/listQueryKeys/action",
+                              "Microsoft.Search/searchServices/listAdminKeys/action",
+                              "Microsoft.Authorization/roleAssignments/read",
+                              "Microsoft.OperationalInsights/workspaces/sharedkeys/action"
+                            ],
+                            "notActions": [],
+                            "dataActions": [],
+                            "notDataActions": []
+                          }
                         ],
-                        "scriptContent": "# Function to create or get role definition\nfunction Get-OrCreateRoleDefinition {\n    param(\n        [string]$RoleName,\n        [string]$Description,\n        [array]$Actions,\n        [array]$DataActions = @(),\n        [string]$SubscriptionId\n    )\n    \n    # Check if role definition already exists\n    $existingRole = Get-AzRoleDefinition -Name $RoleName -ErrorAction SilentlyContinue\n    \n    if ($existingRole) {\n        Write-Host \"Using existing role definition: $RoleName (ID: $($existingRole.Id))\"\n        return $existingRole.Id\n    } else {\n        Write-Host \"Creating new role definition: $RoleName\"\n        \n        $role = New-Object Microsoft.Azure.Commands.Resources.Models.Authorization.PSRoleDefinition\n        $role.Name = $RoleName\n        $role.Description = $Description\n        $role.IsCustom = $true\n        $role.Actions = $Actions\n        $role.DataActions = $DataActions\n        $role.AssignableScopes = @(\"/subscriptions/$SubscriptionId\")\n        \n        $newRole = New-AzRoleDefinition -Role $role\n        Write-Host \"Created role definition: $RoleName (ID: $($newRole.Id))\"\n        return $newRole.Id\n    }\n}\n\n# Function to create role assignment if it doesn't exist\nfunction New-RoleAssignmentIfNotExists {\n    param(\n        [string]$ObjectId,\n        [string]$RoleDefinitionId,\n        [string]$Scope = \"/subscriptions/$Env:SUBSCRIPTION_ID\",\n        [string]$Description,\n        [string]$Condition = $null\n    )\n    \n    $existingAssignment = Get-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionId $RoleDefinitionId -Scope $Scope -ErrorAction SilentlyContinue\n    \n    if ($existingAssignment) {\n        Write-Host \"Role assignment already exists: $Description\"\n    } else {\n        Write-Host \"Creating role assignment: $Description\"\n        if ($Condition) {\n            New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionId $RoleDefinitionId -Scope $Scope -Condition $Condition -ConditionVersion \"2.0\"\n        } else {\n            New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionId $RoleDefinitionId -Scope $Scope\n        }\n    }\n}\n\n# Create or get custom role definitions\n$customRoleActions = @(\n    \"Microsoft.Storage/storageAccounts/listkeys/action\",\n    \"Microsoft.DocumentDB/databaseAccounts/listConnectionStrings/action\",\n    \"Microsoft.DocumentDB/databaseAccounts/listKeys/action\",\n    \"Microsoft.DocumentDB/databaseAccounts/readonlykeys/action\",\n    \"Microsoft.ContainerService/managedClusters/listClusterUserCredential/action\",\n    \"Microsoft.Web/sites/config/list/Action\",\n    \"Microsoft.Cache/redis/listKeys/action\",\n    \"Microsoft.AppConfiguration/configurationStores/ListKeys/action\",\n    \"Microsoft.Search/searchServices/listQueryKeys/action\",\n    \"Microsoft.Search/searchServices/listAdminKeys/action\",\n    \"Microsoft.Authorization/roleAssignments/read\",\n    \"Microsoft.OperationalInsights/workspaces/sharedkeys/action\"\n)\n\n$fireflyCustomRoleId = Get-OrCreateRoleDefinition -RoleName $Env:CUSTOM_ROLE_NAME -Description \"Firefly's requested permissions\" -Actions $customRoleActions -SubscriptionId $Env:SUBSCRIPTION_ID\n\n$storageBlobReaderRoleName = \"Firefly-StorageBlobReader-\" + $Env:SUBSCRIPTION_ID.Substring(0,8)\n$storageBlobDataActions = @(\"Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read\")\n$fireflyStorageBlobReaderId = Get-OrCreateRoleDefinition -RoleName $storageBlobReaderRoleName -Description \"Firefly's storage blob read permissions\" -Actions @() -DataActions $storageBlobDataActions -SubscriptionId $Env:SUBSCRIPTION_ID\n\n# Create role assignments\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"2a2b9908-6ea1-4ae2-8e65-a410df84e7d1\" -Description \"Storage Blob Data Reader (Conditional)\" -Condition \"((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))\"\n\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"acdd72a7-3385-48ef-bd42-f606fba81ae7\" -Description \"Reader\"\n\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64\" -Description \"Billing Reader\"\n\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"516239f1-63e1-4d78-a4de-a74fb236a071\" -Description \"App Configuration Data Reader\"\n\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"39bc4728-0917-49c7-9d2c-d95423bc2eb4\" -Description \"Security Reader\"\n\nNew-RoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId $fireflyCustomRoleId -Description \"Firefly Custom Role\"\n\nWrite-Host \"Role setup completed successfully\"\n\n# Output the role IDs for reference\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['fireflyCustomRoleId'] = $fireflyCustomRoleId\n$DeploymentScriptOutputs['fireflyStorageBlobReaderId'] = $fireflyStorageBlobReaderId"
+                        "assignableScopes": [
+                          "[concat('/subscriptions/', subscription().subscriptionId)]"
+                        ]
                       }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleDefinitions",
+                      "apiVersion": "2022-04-01",
+                      "name": "[guid('fireflyStorageBlobReader', subscription().subscriptionId)]",
+                      "properties": {
+                        "roleName": "[concat('Firefly-StorageBlobReader-', uniqueString(subscription().subscriptionId))]",
+                        "description": "Firefly's storage blob read permissions",
+                        "type": "customRole",
+                        "permissions": [
+                          {
+                            "actions": [],
+                            "notActions": [],
+                            "dataActions": [
+                              "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read"
+                            ],
+                            "notDataActions": []
+                          }
+                        ],
+                        "assignableScopes": [
+                          "[concat('/subscriptions/', subscription().subscriptionId)]"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReaderConditional', subscription().subscriptionId, parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal",
+                        "conditionVersion": "2.0",
+                        "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2020-10-01-preview",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2020-10-01-preview",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly billing reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2020-10-01-preview",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly app config reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '516239f1-63e1-4d78-a4de-a74fb236a071')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2020-10-01-preview",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly security reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '39bc4728-0917-49c7-9d2c-d95423bc2eb4')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2020-10-01-preview",
+                      "name": "[guid('firefly custom role deployment subscription', subscription().subscriptionId, parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyCustomRole', subscription().subscriptionId))]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      },
+                      "dependsOn": [
+                        "[guid('fireflyCustomRole', subscription().subscriptionId)]"
+                      ]
                     }
                   ]
                 }
@@ -303,25 +407,51 @@
                       }
                     },
                     {
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[concat('firefly-eventgrid-setup-', parameters('newguid'))]",
+                      "type": "Microsoft.EventGrid/systemTopics",
+                      "apiVersion": "2021-12-01",
+                      "name": "[parameters('uniqueEventGridTopicName')]",
                       "location": "[parameters('location')]",
-                      "kind": "AzurePowerShell",
+                      "tags": "[parameters('mergedTags')]",
                       "properties": {
-                        "retentionInterval": "PT1H",
-                        "timeout": "PT5M",
-                        "containerSettings": {},
-                        "cleanupPreference": "Always",
-                        "azPowerShellVersion": "8.1",
-                        "environmentVariables": [
-                          { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" },
-                          { "name": "RESOURCE_GROUP", "value": "[resourceGroup().name]" },
-                          { "name": "TOPIC_NAME", "value": "[parameters('uniqueEventGridTopicName')]" },
-                          { "name": "WEBHOOK_URL", "value": "[parameters('fireflyWebhookUrl')]" },
-                          { "name": "TAGS", "value": "[string(parameters('mergedTags'))]" }
-                        ],
-                        "scriptContent": "# Get existing system topics for the subscription\n$existingTopics = Get-AzEventGridSystemTopic | Where-Object { $_.Source -eq \"/subscriptions/$Env:SUBSCRIPTION_ID\" }\n\nif ($existingTopics.Count -gt 0) {\n    $systemTopic = $existingTopics[0]\n    Write-Host \"Using existing system topic: $($systemTopic.Name) in resource group: $($systemTopic.ResourceGroupName)\"\n    $topicName = $systemTopic.Name\n    $topicResourceGroup = $systemTopic.ResourceGroupName\n} else {\n    Write-Host \"Creating new system topic: $Env:TOPIC_NAME\"\n    # Parse tags from string\n    $tagsObj = @{}\n    if ($Env:TAGS -and $Env:TAGS -ne '{}') {\n        $tagsData = $Env:TAGS | ConvertFrom-Json\n        $tagsData.PSObject.Properties | ForEach-Object { $tagsObj[$_.Name] = $_.Value }\n    }\n    \n    $systemTopic = New-AzEventGridSystemTopic -ResourceGroupName $Env:RESOURCE_GROUP -Name $Env:TOPIC_NAME -Source \"/subscriptions/$Env:SUBSCRIPTION_ID\" -TopicType \"Microsoft.Resources.Subscriptions\" -Location \"global\" -Tag $tagsObj\n    $topicName = $systemTopic.Name\n    $topicResourceGroup = $Env:RESOURCE_GROUP\n}\n\n# Create or update event subscription\n$subscriptionName = \"firefly-webhook\"\nWrite-Host \"Creating event subscription: $subscriptionName on topic: $topicName\"\n\n$advancedFilter = @(\n    @{\n        OperatorType = \"StringContains\"\n        Key = \"subject\"\n        Values = @(\"/providers/Microsoft.Storage/storageAccounts\")\n    }\n)\n\n$eventSubscription = New-AzEventGridSystemTopicEventSubscription -ResourceGroupName $topicResourceGroup -SystemTopicName $topicName -EventSubscriptionName $subscriptionName -EndpointType \"webhook\" -Endpoint $Env:WEBHOOK_URL -IncludedEventType @(\"Microsoft.Storage.BlobCreated\", \"Microsoft.Resources.ResourceWriteSuccess\", \"Microsoft.Resources.ResourceDeleteSuccess\") -AdvancedFilter $advancedFilter -MaxDeliveryAttempt 30 -EventTtl 1440 -MaxEventsPerBatch 1\n\nWrite-Host \"EventGrid setup completed successfully\"\nWrite-Host \"System Topic: $topicName\"\nWrite-Host \"Event Subscription: $subscriptionName\"\n\n# Output the topic name for reference\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['systemTopicName'] = $topicName\n$DeploymentScriptOutputs['systemTopicResourceGroup'] = $topicResourceGroup"
+                        "source": "[concat('/subscriptions/', subscription().subscriptionId)]",
+                        "topicType": "Microsoft.Resources.Subscriptions"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+                      "apiVersion": "2021-12-01",
+                      "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
+                      "dependsOn": [
+                        "[parameters('uniqueEventGridTopicName')]"
+                      ],
+                      "properties": {
+                        "destination": {
+                          "endpointType": "WebHook",
+                          "properties": {
+                            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
+                            "maxEventsPerBatch": 1,
+                            "preferredBatchSizeInKilobytes": 64
+                          }
+                        },
+                        "filter": {
+                          "includedEventTypes": [
+                            "Microsoft.Storage.BlobCreated",
+                            "Microsoft.Resources.ResourceWriteSuccess",
+                            "Microsoft.Resources.ResourceDeleteSuccess"
+                          ],
+                          "advancedFilters": [
+                            {
+                              "operatorType": "StringContains",
+                              "key": "subject",
+                              "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                            }
+                          ]
+                        },
+                        "eventDeliverySchema": "EventGridSchema",
+                        "retryPolicy": {
+                          "maxDeliveryAttempts": 30,
+                          "eventTimeToLiveInMinutes": 1440
+                        }
                       }
                     }
                   ]
@@ -358,24 +488,25 @@
                   "variables": {},
                   "resources": [
                     {
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[concat('firefly-storage-roles-setup-', parameters('newguid'))]",
-                      "location": "westus2",
-                      "kind": "AzurePowerShell",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', parameters('uniqueStorageAccountName'), parameters('newguid'))]",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                       "properties": {
-                        "retentionInterval": "PT1H",
-                        "timeout": "PT5M",
-                        "containerSettings": {},
-                        "cleanupPreference": "Always",
-                        "azPowerShellVersion": "8.1",
-                        "environmentVariables": [
-                          { "name": "SUBSCRIPTION_ID", "value": "[parameters('targetSubscriptionId')]" },
-                          { "name": "STORAGE_ACCOUNT_NAME", "value": "[parameters('uniqueStorageAccountName')]" },
-                          { "name": "SERVICE_PRINCIPAL_OBJECT_ID", "value": "[parameters('servicePrincipalObjectId')]" },
-                          { "name": "RESOURCE_GROUP", "value": "[resourceGroup().name]" }
-                        ],
-                        "scriptContent": "# Function to create role assignment if it doesn't exist\nfunction New-StorageRoleAssignmentIfNotExists {\n    param(\n        [string]$ObjectId,\n        [string]$RoleDefinitionId,\n        [string]$StorageAccountName,\n        [string]$ResourceGroupName,\n        [string]$Description\n    )\n    \n    $storageScope = \"/subscriptions/$Env:SUBSCRIPTION_ID/resourceGroups/$ResourceGroupName/providers/Microsoft.Storage/storageAccounts/$StorageAccountName\"\n    $existingAssignment = Get-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionId $RoleDefinitionId -Scope $storageScope -ErrorAction SilentlyContinue\n    \n    if ($existingAssignment) {\n        Write-Host \"Storage role assignment already exists: $Description\"\n    } else {\n        Write-Host \"Creating storage role assignment: $Description\"\n        New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionId $RoleDefinitionId -Scope $storageScope\n    }\n}\n\n# Get the custom Firefly storage blob reader role ID\n$storageBlobReaderRoleName = \"Firefly-StorageBlobReader-\" + $Env:SUBSCRIPTION_ID.Substring(0,8)\n$customRole = Get-AzRoleDefinition -Name $storageBlobReaderRoleName -ErrorAction SilentlyContinue\n\nif ($customRole) {\n    Write-Host \"Found custom storage blob reader role: $($customRole.Name) (ID: $($customRole.Id))\"\n    $customRoleId = $customRole.Id\n} else {\n    Write-Warning \"Custom storage blob reader role not found. It should have been created by the roles setup script.\"\n    # Fallback to just using the built-in Storage Blob Data Reader role\n    $customRoleId = \"2a2b9908-6ea1-4ae2-8e65-a410df84e7d1\"\n}\n\n# Create role assignments for storage account\nNew-StorageRoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId \"2a2b9908-6ea1-4ae2-8e65-a410df84e7d1\" -StorageAccountName $Env:STORAGE_ACCOUNT_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Description \"Storage Blob Data Reader\"\n\nNew-StorageRoleAssignmentIfNotExists -ObjectId $Env:SERVICE_PRINCIPAL_OBJECT_ID -RoleDefinitionId $customRoleId -StorageAccountName $Env:STORAGE_ACCOUNT_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Description \"Firefly Custom Storage Blob Reader\"\n\nWrite-Host \"Storage role assignments completed successfully\""
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', parameters('uniqueStorageAccountName'), parameters('newguid'))]",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
+                      "properties": {
+                        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
+                        "principalId": "[parameters('servicePrincipalObjectId')]",
+                        "principalType": "ServicePrincipal"
                       }
                     }
                   ]
@@ -459,6 +590,7 @@
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
               "location": "[parameters('location')]",
+              "subscriptionId": "[parameters('targetSubscriptionId')]",
               "dependsOn": [
                 "[concat('firefly-resources-', parameters('newguid'))]"
               ],
