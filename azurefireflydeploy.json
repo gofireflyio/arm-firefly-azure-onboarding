@@ -28,11 +28,6 @@
       "type": "int",
       "defaultValue": "[length(parameters('subscriptionsList'))]"
     },
-    "resourceGroupPrefix": {
-      "type": "string",
-      "defaultValue": "firefly-rg",
-      "metadata": { "description": "Prefix for resource groups created in each subscription" }
-    },
     "fireflyAccessKey": {
       "type": "securestring",
       "metadata": { "description": "Firefly access key" }
@@ -122,71 +117,9 @@
   },
   "variables": {
     "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
-    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]",
-    "resourceGroupName": "[concat(parameters('resourceGroupPrefix'), '-', uniqueString(subscription().subscriptionId))]"
+    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
   },
   "resources": [
-    {
-      "copy": {
-        "name": "resourceGroupCopy",
-        "count": "[length(parameters('subscriptionsList'))]",
-        "mode": "Parallel"
-      },
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "resourceGroupName": {
-              "value": "[concat(parameters('resourceGroupPrefix'), '-', uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
-          },
-          "location": {
-              "value": "[parameters('location')]"
-          },
-          "tags": {
-              "value": "[variables('mergedTags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-              "resourceGroupName": {
-                  "type": "string"
-              },
-              "location": {
-                  "type": "string"
-              },
-              "tags": {
-                  "type": "object"
-              }
-          },
-          "variables": {},
-          "resources": [
-            {
-              "type": "Microsoft.Resources/resourceGroups",
-              "apiVersion": "2021-04-01",
-              "name": "[parameters('resourceGroupName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {}
-            }
-          ],
-          "outputs": {
-            "resourceGroupName": {
-              "type": "string",
-              "value": "[parameters('resourceGroupName')]"
-            }
-          }
-        }
-      }
-    },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
@@ -432,128 +365,23 @@
       }
     },
     {
-      "copy": {
-        "name": "storageAccountCopy",
-        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "mode": "Parallel"
-      },
       "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-09-01",
+      "name": "[variables('computedStorageAccountName')]",
       "location": "[parameters('location')]",
-      "dependsOn": [
-        "resourceGroupCopy"
-      ],
+      "tags": "[variables('mergedTags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
       "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "resourceGroupName": {
-              "value": "[concat(parameters('resourceGroupPrefix'), '-', uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
-          },
-          "storageAccountName": {
-              "value": "[concat(variables('computedStorageAccountName'), uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
-          },
-          "location": {
-              "value": "[parameters('location')]"
-          },
-          "tags": {
-              "value": "[variables('mergedTags')]"
-          },
-          "enforceStorageNetworkRules": {
-              "value": "[parameters('enforceStorageNetworkRules')]"
-          },
-          "fireflyEips": {
-              "value": "[parameters('fireflyEips')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-              "resourceGroupName": {
-                  "type": "string"
-              },
-              "storageAccountName": {
-                  "type": "string"
-              },
-              "location": {
-                  "type": "string"
-              },
-              "tags": {
-                  "type": "object"
-              },
-              "enforceStorageNetworkRules": {
-                  "type": "bool"
-              },
-              "fireflyEips": {
-                  "type": "array"
-              }
-          },
-          "variables": {},
-          "resources": [
-            {
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2021-04-01",
-              "name": "storageAccountDeployment",
-              "resourceGroup": "[parameters('resourceGroupName')]",
-              "properties": {
-                "mode": "Incremental",
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {},
-                  "variables": {},
-                  "resources": [
-                    {
-                      "type": "Microsoft.Storage/storageAccounts",
-                      "apiVersion": "2021-09-01",
-                      "name": "[parameters('storageAccountName')]",
-                      "location": "[parameters('location')]",
-                      "tags": "[parameters('tags')]",
-                      "sku": {
-                        "name": "Standard_LRS"
-                      },
-                      "kind": "StorageV2",
-                      "properties": {
-                        "accessTier": "Hot",
-                        "minimumTlsVersion": "TLS1_2",
-                        "supportsHttpsTrafficOnly": true,
-                        "allowBlobPublicAccess": false,
-                        "crossTenantReplicationEnabled": false,
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
-                      }
-                    }
-                  ],
-                  "outputs": {
-                    "storageAccountName": {
-                      "type": "string",
-                      "value": "[parameters('storageAccountName')]"
-                    },
-                    "storageAccountId": {
-                      "type": "string",
-                      "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-                    }
-                  }
-                }
-              }
-            }
-          ],
-          "outputs": {
-            "storageAccountName": {
-              "type": "string",
-              "value": "[parameters('storageAccountName')]"
-            },
-            "storageAccountId": {
-              "type": "string",
-              "value": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
-            }
-          }
-        }
+        "accessTier": "Hot",
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": false,
+        "crossTenantReplicationEnabled": false,
+        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
       }
     },
     {
@@ -569,8 +397,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "resourceGroupCopy",
-        "storageAccountCopy"
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -580,9 +407,6 @@
         "parameters": {
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
-          },
-          "resourceGroupName": {
-              "value": "[concat(parameters('resourceGroupPrefix'), '-', uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
           },
           "eventGridTopicName": {
               "value": "[concat(parameters('eventGridTopicName'), '-', parameters('subscriptionsList')[copyIndex()])]"
@@ -604,9 +428,6 @@
               "subscriptionId": {
                   "type": "string"
               },
-              "resourceGroupName": {
-                  "type": "string"
-              },
               "eventGridTopicName": {
                   "type": "string"
               },
@@ -623,68 +444,50 @@
           "variables": {},
           "resources": [
             {
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2021-04-01",
-              "name": "eventGridDeployment",
-              "resourceGroup": "[parameters('resourceGroupName')]",
+              "type": "Microsoft.EventGrid/systemTopics",
+              "apiVersion": "2021-12-01",
+              "name": "[parameters('eventGridTopicName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
               "properties": {
-                "mode": "Incremental",
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {},
-                  "variables": {},
-                  "resources": [
-                    {
-                      "type": "Microsoft.EventGrid/systemTopics",
-                      "apiVersion": "2021-12-01",
-                      "name": "[parameters('eventGridTopicName')]",
-                      "location": "[parameters('location')]",
-                      "tags": "[parameters('tags')]",
-                      "properties": {
-                        "source": "[concat('/subscriptions/', parameters('subscriptionId'))]",
-                        "topicType": "Microsoft.Resources.Subscriptions"
-                      }
-                    },
-                    {
-                      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
-                      "apiVersion": "2021-12-01",
-                      "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
-                      "dependsOn": [
-                        "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
-                      ],
-                      "properties": {
-                        "destination": {
-                          "endpointType": "WebHook",
-                          "properties": {
-                            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
-                            "maxEventsPerBatch": 1,
-                            "preferredBatchSizeInKilobytes": 64
-                          }
-                        },
-                        "filter": {
-                          "includedEventTypes": [
-                            "Microsoft.Storage.BlobCreated",
-                            "Microsoft.Resources.ResourceWriteSuccess",
-                            "Microsoft.Resources.ResourceDeleteSuccess"
-                          ],
-                          "advancedFilters": [
-                            {
-                              "operatorType": "StringContains",
-                              "key": "subject",
-                              "values": ["/providers/Microsoft.Storage/storageAccounts"]
-                            }
-                          ]
-                        },
-                        "eventDeliverySchema": "EventGridSchema",
-                        "retryPolicy": {
-                          "maxDeliveryAttempts": 30,
-                          "eventTimeToLiveInMinutes": 1440
-                        }
-                      }
-                    }
+                "source": "[concat('/subscriptions/', parameters('subscriptionId'))]",
+                "topicType": "Microsoft.Resources.Subscriptions"
+              }
+            },
+            {
+              "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+              "apiVersion": "2021-12-01",
+              "name": "[concat(parameters('eventGridTopicName'), '/firefly-webhook')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName'))]"
+              ],
+              "properties": {
+                "destination": {
+                  "endpointType": "WebHook",
+                  "properties": {
+                    "endpointUrl": "[parameters('fireflyWebhookUrl')]",
+                    "maxEventsPerBatch": 1,
+                    "preferredBatchSizeInKilobytes": 64
+                  }
+                },
+                "filter": {
+                  "includedEventTypes": [
+                    "Microsoft.Storage.BlobCreated",
+                    "Microsoft.Resources.ResourceWriteSuccess",
+                    "Microsoft.Resources.ResourceDeleteSuccess"
                   ],
-                  "outputs": {}
+                  "advancedFilters": [
+                    {
+                      "operatorType": "StringContains",
+                      "key": "subject",
+                      "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                    }
+                  ]
+                },
+                "eventDeliverySchema": "EventGridSchema",
+                "retryPolicy": {
+                  "maxDeliveryAttempts": 30,
+                  "eventTimeToLiveInMinutes": 1440
                 }
               }
             }
@@ -694,108 +497,35 @@
       }
     },
     {
-      "copy": {
-        "name": "storageBlobDataReaderCopy",
-        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "mode": "Parallel"
-      },
       "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-storage-role-reader-', copyIndex(), '-', parameters('newguid'))]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "storageAccountCopy"
-      ],
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', resourceGroup().id, parameters('newguid'))]",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
       "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "resourceGroupName": {
-              "value": "[concat(parameters('resourceGroupPrefix'), '-', uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
-          },
-          "storageAccountName": {
-              "value": "[concat(variables('computedStorageAccountName'), uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
-          },
-          "servicePrincipalObjectId": {
-              "value": "[parameters('servicePrincipalObjectId')]"
-          },
-          "subscriptionId": {
-              "value": "[parameters('subscriptionsList')[copyIndex()]]"
-          },
-          "newguid": {
-              "value": "[parameters('newguid')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-              "resourceGroupName": {
-                  "type": "string"
-              },
-              "storageAccountName": {
-                  "type": "string"
-              },
-              "servicePrincipalObjectId": {
-                  "type": "string"
-              },
-              "subscriptionId": {
-                  "type": "string"
-              },
-              "newguid": {
-                  "type": "string"
-              }
-          },
-          "variables": {},
-          "resources": [
-            {
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2021-04-01",
-              "name": "storageRoleAssignments",
-              "resourceGroup": "[parameters('resourceGroupName')]",
-              "properties": {
-                "mode": "Incremental",
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {},
-                  "variables": {},
-                  "resources": [
-                    {
-                      "type": "Microsoft.Authorization/roleAssignments",
-                      "apiVersion": "2022-04-01",
-                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', parameters('storageAccountName'), parameters('newguid'))]",
-                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
-                      "properties": {
-                        "roleDefinitionId": "[concat('/subscriptions/', parameters('subscriptionId'), '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
-                        "principalId": "[parameters('servicePrincipalObjectId')]",
-                        "principalType": "ServicePrincipal"
-                      }
-                    },
-                    {
-                      "type": "Microsoft.Authorization/roleAssignments",
-                      "apiVersion": "2022-04-01",
-                      "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', parameters('storageAccountName'), parameters('newguid'))]",
-                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
-                      "properties": {
-                        "roleDefinitionId": "[concat('/subscriptions/', parameters('subscriptionId'), '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', parameters('subscriptionId')))]",
-                        "principalId": "[parameters('servicePrincipalObjectId')]",
-                        "principalType": "ServicePrincipal"
-                      }
-                    }
-                  ],
-                  "outputs": {}
-                }
-              }
-            }
-          ],
-          "outputs": {}
-        }
-      }
+        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', resourceGroup().id, parameters('newguid'))]",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+      "properties": {
+        "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
+        "principalId": "[parameters('servicePrincipalObjectId')]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+        "[concat('firefly-custom-roles-', parameters('newguid'))]"
+      ]
     },
     {
       "copy": {
@@ -810,8 +540,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "resourceGroupCopy",
-        "storageAccountCopy"
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -820,7 +549,7 @@
         },
         "parameters": {
           "storageAccountId": {
-              "value": "[concat('/subscriptions/', parameters('subscriptionsList')[copyIndex()], '/resourceGroups/', concat(parameters('resourceGroupPrefix'), '-', uniqueString(parameters('subscriptionsList')[copyIndex()])), '/providers/Microsoft.Storage/storageAccounts/', concat(variables('computedStorageAccountName'), uniqueString(parameters('subscriptionsList')[copyIndex()])))]"
+              "value": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Storage/storageAccounts/', variables('computedStorageAccountName'))]"
           },
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
@@ -866,34 +595,25 @@
   "outputs": {
     "subscriptionCount": {"type":"int","value":"[parameters('subscriptionCount')]"},
     "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
-    "resourceGroupPrefix": {"type":"string","value":"[parameters('resourceGroupPrefix')]"},
-    "subscriptionsDeployed": {
-      "type": "array",
-      "value": "[parameters('subscriptionsList')]"
-    },
-    "resourceGroupsCreated": {
-      "type": "array",
-      "value": "[if(greater(length(parameters('subscriptionsList')), 0), map(parameters('subscriptionsList'), lambda('sub', concat(parameters('resourceGroupPrefix'), '-', uniqueString(lambdaVariables('sub'))))), createArray())]"
-    },
-    "storageAccountsCreated": {
+    "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "array",
-      "value": "[if(and(parameters('eventDrivenEnabled'), greater(length(parameters('subscriptionsList')), 0)), map(parameters('subscriptionsList'), lambda('sub', concat(variables('computedStorageAccountName'), uniqueString(lambdaVariables('sub'))))), createArray())]"
+      "type":"string",
+      "value":"[if(parameters('eventDrivenEnabled'), variables('computedStorageAccountName'), '')]"
+    },
+    "eventGridTopicName": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type":"string",
+      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-multi-subscription'), '')]"
+    },
+    "storageAccountId": {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "string",
+      "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName')), '')]"
     },
     "eventGridTopicsDeployed": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
       "value": "[if(parameters('eventDrivenEnabled'), string(length(parameters('subscriptionsList'))), '0')]"
-    },
-    "deploymentSummary": {
-      "type": "object",
-      "value": {
-        "subscriptionsProcessed": "[length(parameters('subscriptionsList'))]",
-        "resourceGroupsCreated": "[length(parameters('subscriptionsList'))]",
-        "storageAccountsCreated": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "eventGridTopicsCreated": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "diagnosticSettingsCreated": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]"
-      }
     }
   }
 }

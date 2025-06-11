@@ -10,7 +10,7 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "The selection of subscription and resource group defines where the deployment script will be created. Resource groups will be created in each selected subscription for Firefly resources."
+          "text": "The selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
         }
       },
       {
@@ -49,19 +49,6 @@
             "constraints": {
               "allowedValues": "[map(filter(steps('basics').armio.value, (i)=>and(   not(equals(i.type, 'Microsoft.Management/managementGroups')),   not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
               "required": false
-            },
-            "visible": true
-          },
-          {
-            "name": "resourceGroupPrefix",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Resource Group Prefix",
-            "defaultValue": "firefly-rg",
-            "toolTip": "Prefix for resource groups that will be created in each selected subscription. Default is 'firefly-rg'.",
-            "constraints": {
-              "required": true,
-              "regex": "^[a-zA-Z0-9]([a-zA-Z0-9-._])*[a-zA-Z0-9]$",
-              "validationMessage": "Resource group prefix must be 1-90 characters long and can contain alphanumeric characters, periods, underscores, hyphens. Must start and end with alphanumeric."
             },
             "visible": true
           },
@@ -171,7 +158,6 @@
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
-      "resourceGroupPrefix": "[steps('integrationConfig').resourceGroupPrefix]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]"
