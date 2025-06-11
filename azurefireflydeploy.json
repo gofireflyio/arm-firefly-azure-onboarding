@@ -47,31 +47,7 @@
       "defaultValue": "https://azureevents-env1.dev.firefly.ai",
       "metadata": { "description": "Firefly webhook URL for event notifications" }
     },
-    "storageAccountName": {
-      "type": "string",
-      "defaultValue": "[concat('firefly', uniqueString(subscription().subscriptionId))]",
-      "metadata": { "description": "Name for the storage account (must be globally unique)" }
-    },
-    "eventGridTopicName": {
-      "type": "string",
-      "defaultValue": "[concat('firefly-events-', substring(subscription().subscriptionId, 0, 8), '-', parameters('newguid'))]",
-      "metadata": { "description": "Name for the Event Grid system topic" }
-    },
-    "customRoleName": {
-      "type": "string",
-      "defaultValue": "[concat('Firefly-', uniqueString(subscription().subscriptionId))]",
-      "metadata": { "description": "Name for the custom Firefly role definition" }
-    },
-    "prefix": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Prefix for resource naming" }
-    },
-    "suffix": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Suffix for resource naming" }
-    },
+
     "enforceStorageNetworkRules": {
       "type": "bool",
       "defaultValue": false,
@@ -118,7 +94,6 @@
   },
   "variables": {
     "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
-    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]",
     "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
   },
   "resources": [
@@ -155,7 +130,7 @@
           "parameters": {},
           "variables": {
             "mergedTags": "[variables('mergedTags')]",
-            "uniqueStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), 'firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]), parameters('suffix'))]",
+            "uniqueStorageAccountName": "[concat('firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]",
             "uniqueEventGridTopicName": "[concat('firefly-events-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]",
             "uniqueCustomRoleName": "[concat('Firefly-', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
           },
