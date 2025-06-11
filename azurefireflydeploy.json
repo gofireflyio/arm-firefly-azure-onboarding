@@ -49,12 +49,12 @@
     },
     "storageAccountName": {
       "type": "string",
-      "defaultValue": "[concat('firefly', uniqueString(subscription().subscriptionId, resourceGroup().id))]",
+      "defaultValue": "[concat('firefly', uniqueString(subscription().subscriptionId))]",
       "metadata": { "description": "Name for the storage account (must be globally unique)" }
     },
     "eventGridTopicName": {
       "type": "string",
-      "defaultValue": "[concat('firefly-events-', resourceGroup().name, '-', parameters('newguid'))]",
+      "defaultValue": "[concat('firefly-events-', substring(subscription().subscriptionId, 0, 8), '-', parameters('newguid'))]",
       "metadata": { "description": "Name for the Event Grid system topic" }
     },
     "customRoleName": {
