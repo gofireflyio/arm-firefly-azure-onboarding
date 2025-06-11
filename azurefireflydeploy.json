@@ -353,10 +353,29 @@
               ],
               "properties": {
                 "mode": "Incremental",
+                "parameters": {
+                  "uniqueStorageAccountName": { "value": "[parameters('uniqueStorageAccountName')]" },
+                  "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
+                  "targetSubscriptionId": { "value": "[parameters('targetSubscriptionId')]" },
+                  "newguid": { "value": "[parameters('newguid')]" },
+                  "mergedTags": { "value": "[parameters('mergedTags')]" },
+                  "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
+                  "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+                  "location": { "value": "[parameters('location')]" }
+                },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
-                  "parameters": {},
+                  "parameters": {
+                    "uniqueStorageAccountName": { "type": "string" },
+                    "servicePrincipalObjectId": { "type": "string" },
+                    "targetSubscriptionId": { "type": "string" },
+                    "newguid": { "type": "string" },
+                    "mergedTags": { "type": "object" },
+                    "enforceStorageNetworkRules": { "type": "bool" },
+                    "fireflyEips": { "type": "array" },
+                    "location": { "type": "string" }
+                  },
                   "variables": {},
                   "resources": [
                     {
