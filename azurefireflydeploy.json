@@ -366,8 +366,7 @@
                   "location": { "value": "[parameters('location')]" },
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
-                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
-                  "resourceGroupName": { "value": "[variables('resourceGroupName')]" }
+                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -383,8 +382,7 @@
                     "location": { "type": "string" },
                     "uniqueEventGridTopicName": { "type": "string" },
                     "fireflyWebhookUrl": { "type": "string" },
-                    "eventDrivenEnabled": { "type": "bool" },
-                    "resourceGroupName": { "type": "string" }
+                    "eventDrivenEnabled": { "type": "bool" }
                   },
                   "variables": {},
                   "resources": [
@@ -414,7 +412,7 @@
                       "location": "global",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
-                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
+                        "source": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                         "topicType": "Microsoft.Storage.StorageAccounts"
                       },
                       "dependsOn": [
