@@ -396,9 +396,6 @@
       "name": "[concat('firefly-eventgrid-', copyIndex(), '-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
-      ],
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -568,24 +565,24 @@
           },
           "variables": {},
           "resources": [
-                         {
-               "type": "Microsoft.Insights/diagnosticSettings",
-               "apiVersion": "2021-05-01-preview",
-               "name": "[concat('firefly-diag-', parameters('subscriptionId'))]",
-               "properties": {
-                 "storageAccountId": "[parameters('storageAccountId')]",
-                 "logs": [
-                   {
-                     "category": "Administrative",
-                     "enabled": true,
-                     "retentionPolicy": {
-                       "enabled": false,
-                       "days": 0
-                     }
-                   }
-                 ]
-               }
-             }
+            {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "name": "[concat('firefly-diag-', parameters('subscriptionId'))]",
+              "properties": {
+                "storageAccountId": "[parameters('storageAccountId')]",
+                "logs": [
+                  {
+                    "category": "Administrative",
+                    "enabled": true,
+                    "retentionPolicy": {
+                      "enabled": false,
+                      "days": 0
+                    }
+                  }
+                ]
+              }
+            }
           ],
           "outputs": {}
         }
@@ -595,15 +592,14 @@
   "outputs": {
     "subscriptionCount": {"type":"int","value":"[parameters('subscriptionCount')]"},
     "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
+    "subscriptionsDeployed": {
+      "type": "array",
+      "value": "[parameters('subscriptionsList')]"
+    },
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), variables('computedStorageAccountName'), '')]"
-    },
-    "eventGridTopicName": {
-      "condition": "[parameters('eventDrivenEnabled')]",
-      "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), concat(parameters('eventGridTopicName'), '-multi-subscription'), '')]"
     },
     "storageAccountId": {
       "condition": "[parameters('eventDrivenEnabled')]",
@@ -614,6 +610,15 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "string",
       "value": "[if(parameters('eventDrivenEnabled'), string(length(parameters('subscriptionsList'))), '0')]"
+    },
+    "deploymentSummary": {
+      "type": "object",
+      "value": {
+        "subscriptionsProcessed": "[length(parameters('subscriptionsList'))]",
+        "centralStorageAccount": "[if(parameters('eventDrivenEnabled'), variables('computedStorageAccountName'), 'N/A')]",
+        "eventGridTopicsCreated": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
+        "diagnosticSettingsCreated": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]"
+      }
     }
   }
 }

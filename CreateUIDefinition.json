@@ -10,7 +10,7 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "The selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
+          "text": "The selection of subscription and resource group defines where the central storage account and deployment script will be created. EventGrid topics and diagnostic settings will be created in each selected subscription for Firefly monitoring."
         }
       },
       {
@@ -56,7 +56,7 @@
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
             "label": "Production Environment",
-            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create storage accounts, event grid topics, and diagnostic settings for real-time monitoring.",
+            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create a central storage account, event grid topics in each subscription, and diagnostic settings for real-time monitoring.",
             "constraints": {
               "required": false
             },
