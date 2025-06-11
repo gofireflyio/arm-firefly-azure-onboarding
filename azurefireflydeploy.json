@@ -552,7 +552,7 @@
                       "kind": "AzurePowerShell",
                       "properties": {
                         "retentionInterval": "PT1H",
-                        "timeout": "PT2M",
+                        "timeout": "PT5M",
                         "containerSettings": {},
                         "cleanupPreference": "Always",
                         "azPowerShellVersion": "8.1",
