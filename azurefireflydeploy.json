@@ -361,7 +361,10 @@
                   "mergedTags": { "value": "[parameters('mergedTags')]" },
                   "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
                   "fireflyEips": { "value": "[parameters('fireflyEips')]" },
-                  "location": { "value": "[parameters('location')]" }
+                  "location": { "value": "[parameters('location')]" },
+                  "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
+                  "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
+                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -374,7 +377,10 @@
                     "mergedTags": { "type": "object" },
                     "enforceStorageNetworkRules": { "type": "bool" },
                     "fireflyEips": { "type": "array" },
-                    "location": { "type": "string" }
+                    "location": { "type": "string" },
+                    "uniqueEventGridTopicName": { "type": "string" },
+                    "fireflyWebhookUrl": { "type": "string" },
+                    "eventDrivenEnabled": { "type": "bool" }
                   },
                   "variables": {},
                   "resources": [
@@ -424,61 +430,58 @@
                       "dependsOn": [
                         "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]"
                       ]
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.EventGrid/systemTopics",
-              "apiVersion": "2021-12-01",
-              "name": "[parameters('uniqueEventGridTopicName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('mergedTags')]",
-              "dependsOn": [
-                "[variables('resourceGroupName')]"
-              ],
-              "properties": {
-                "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'))]",
-                "topicType": "Microsoft.Resources.Subscriptions"
-              }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
-              "apiVersion": "2021-12-01",
-              "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
-              "dependsOn": [
-                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('uniqueEventGridTopicName'))]"
-              ],
-              "properties": {
-                "destination": {
-                  "endpointType": "WebHook",
-                  "properties": {
-                    "endpointUrl": "[parameters('fireflyWebhookUrl')]",
-                    "maxEventsPerBatch": 1,
-                    "preferredBatchSizeInKilobytes": 64
-                  }
-                },
-                "filter": {
-                  "includedEventTypes": [
-                    "Microsoft.Storage.BlobCreated",
-                    "Microsoft.Resources.ResourceWriteSuccess",
-                    "Microsoft.Resources.ResourceDeleteSuccess"
-                  ],
-                  "advancedFilters": [
+                    },
                     {
-                      "operatorType": "StringContains",
-                      "key": "subject",
-                      "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                      "condition": "[parameters('eventDrivenEnabled')]",
+                      "type": "Microsoft.EventGrid/systemTopics",
+                      "apiVersion": "2021-12-01",
+                      "name": "[parameters('uniqueEventGridTopicName')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('mergedTags')]",
+                      "properties": {
+                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'))]",
+                        "topicType": "Microsoft.Resources.Subscriptions"
+                      }
+                                         },
+                     {
+                       "condition": "[parameters('eventDrivenEnabled')]",
+                       "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+                      "apiVersion": "2021-12-01",
+                      "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
+                      "dependsOn": [
+                        "[resourceId('Microsoft.EventGrid/systemTopics', parameters('uniqueEventGridTopicName'))]"
+                      ],
+                      "properties": {
+                        "destination": {
+                          "endpointType": "WebHook",
+                          "properties": {
+                            "endpointUrl": "[parameters('fireflyWebhookUrl')]",
+                            "maxEventsPerBatch": 1,
+                            "preferredBatchSizeInKilobytes": 64
+                          }
+                        },
+                        "filter": {
+                          "includedEventTypes": [
+                            "Microsoft.Storage.BlobCreated",
+                            "Microsoft.Resources.ResourceWriteSuccess",
+                            "Microsoft.Resources.ResourceDeleteSuccess"
+                          ],
+                          "advancedFilters": [
+                            {
+                              "operatorType": "StringContains",
+                              "key": "subject",
+                              "values": ["/providers/Microsoft.Storage/storageAccounts"]
+                            }
+                          ]
+                        },
+                        "eventDeliverySchema": "EventGridSchema",
+                        "retryPolicy": {
+                          "maxDeliveryAttempts": 30,
+                          "eventTimeToLiveInMinutes": 1440
+                        }
+                      }
                     }
                   ]
-                },
-                "eventDeliverySchema": "EventGridSchema",
-                "retryPolicy": {
-                  "maxDeliveryAttempts": 30,
-                  "eventTimeToLiveInMinutes": 1440
                 }
               }
             },
