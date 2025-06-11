@@ -10,7 +10,7 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "The selection of subscription and resource group defines where the central storage account and deployment script will be created. EventGrid topics and diagnostic settings will be created in each selected subscription for Firefly monitoring."
+          "text": "The selected subscription and resource group will be used for Firefly monitoring infrastructure deployment. This will monitor the selected subscription for resource changes and cost optimization."
         }
       },
       {
@@ -20,14 +20,6 @@
         "defaultValue": "global",
         "toolTip": "Resources location",
         "visible": false
-      },
-      {
-        "name": "armio",
-        "type": "Microsoft.Solutions.ArmApiControl",
-        "request": {
-          "method": "POST",
-          "path": "/providers/Microsoft.Management/getEntities?api-version=2020-05-01"
-        }
       }
     ],
     "steps": [
@@ -37,26 +29,10 @@
         "label": "Integration Configuration",
         "elements": [
           {
-            "name": "subscriptionsList",
-            "type": "Microsoft.Common.DropDown",
-            "label": "Subscriptions to onboard",
-            "toolTip": "Select one or more subscriptions to onboard",
-            "filterPlaceholder": "Select subscriptions",
-            "filter": true,
-            "multiselect": true,
-            "selectAll": true,
-            "defaultValue": "[map(filter(steps('basics').armio.value,(i) => and(not(equals(i.type,'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions,'noaccess'),equals(i.properties.inheritedPermissions,'noaccess'))))),(item) => item.properties.displayName)]",
-            "constraints": {
-              "allowedValues": "[map(filter(steps('basics').armio.value, (i)=>and(   not(equals(i.type, 'Microsoft.Management/managementGroups')),   not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
-              "required": false
-            },
-            "visible": true
-          },
-          {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
             "label": "Production Environment",
-            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create a central storage account, event grid topics in each subscription, and diagnostic settings for real-time monitoring.",
+            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create a storage account, event grid topic, and diagnostic settings for real-time monitoring.",
             "constraints": {
               "required": false
             },
@@ -79,7 +55,7 @@
                 "visible": true,
                 "options": {
                   "icon": "Info",
-                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on selected subscriptions:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader"
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscription. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected subscription:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader"
                 }
               },
               {
@@ -157,7 +133,6 @@
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
-      "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]"
