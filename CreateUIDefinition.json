@@ -178,7 +178,7 @@
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
       "isMultiSubscription": "[steps('integrationConfig').isMultiSubscription]",
-      "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, createArray(subscription().subscriptionId))]"
+      "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, array(subscription().subscriptionId))]"
     }
   }
 }
