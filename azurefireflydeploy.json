@@ -126,7 +126,6 @@
           "scope": "inner"
         },
         "parameters": {
-          "targetSubscriptionId": { "value": "[variables('effectiveSubscriptions')[copyIndex()]]" },
           "mergedTags": { "value": "[variables('mergedTags')]" },
           "uniqueStorageAccountName": { "value": "[concat('firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]" },
           "uniqueEventGridTopicName": { "value": "[concat('firefly-events-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]" },
