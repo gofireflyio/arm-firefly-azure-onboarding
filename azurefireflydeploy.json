@@ -364,7 +364,13 @@
                   "location": { "value": "[parameters('location')]" },
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
-                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" }
+                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
+                  "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
+                  "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
+                  "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
+                  "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
+                  "isProd": { "value": "[parameters('isProd')]" },
+                  "directoryDomain": { "value": "[parameters('directoryDomain')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -380,7 +386,13 @@
                     "location": { "type": "string" },
                     "uniqueEventGridTopicName": { "type": "string" },
                     "fireflyWebhookUrl": { "type": "string" },
-                    "eventDrivenEnabled": { "type": "bool" }
+                    "eventDrivenEnabled": { "type": "bool" },
+                    "servicePrincipalClientId": { "type": "string" },
+                    "servicePrincipalClientSecret": { "type": "securestring" },
+                    "fireflyAccessKey": { "type": "securestring" },
+                    "fireflySecretKey": { "type": "securestring" },
+                    "isProd": { "type": "bool" },
+                    "directoryDomain": { "type": "string" }
                   },
                   "variables": {},
                   "resources": [
@@ -480,6 +492,36 @@
                           "eventTimeToLiveInMinutes": 1440
                         }
                       }
+                    },
+                    {
+                       "type": "Microsoft.Resources/deploymentScripts",
+                       "apiVersion": "2020-10-01",
+                       "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
+                       "location": "[parameters('location')]",
+                       "kind": "AzurePowerShell",
+                       "dependsOn": [
+                         "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]"
+                       ],
+                      "properties": {
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT2M",
+                        "containerSettings": {},
+                        "cleanupPreference": "Always",
+                        "azPowerShellVersion": "8.1",
+                        "environmentVariables": [
+                          { "name": "SUBSCRIPTION_ID", "value": "[parameters('targetSubscriptionId')]" },
+                          { "name": "CLIENT_ID", "value": "[parameters('servicePrincipalClientId')]" },
+                          { "name": "CLIENT_SECRET", "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+                          { "name": "FIREFLY_ACCESS_KEY", "secureValue": "[parameters('fireflyAccessKey')]" },
+                          { "name": "FIREFLY_SECRET_KEY", "secureValue": "[parameters('fireflySecretKey')]" },
+                          { "name": "TENANT_ID", "value": "[subscription().tenantId]" },
+                          { "name": "IS_PROD", "value": "[parameters('isProd')]" },
+                          { "name": "IS_EVENT_DRIVEN", "value": "[parameters('eventDrivenEnabled')]" },
+                          { "name": "IS_AUTO_DISCOVER", "value": "false" },
+                          { "name": "DIRECTORY_DOMAIN", "value": "[parameters('directoryDomain')]" }
+                        ],
+                        "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n# Get subscription details\ntry {\n    $subscription = Get-AzSubscription -SubscriptionId $Env:SUBSCRIPTION_ID -ErrorAction Stop\n    $subscriptionDisplayName = $subscription.Name\n} catch {\n    Write-Warning \"Could not retrieve subscription details for $Env:SUBSCRIPTION_ID. Using ID as name.\"\n    $subscriptionDisplayName = $Env:SUBSCRIPTION_ID\n}\n\nWrite-Host \"Creating integration for subscription: $subscriptionDisplayName ($Env:SUBSCRIPTION_ID)\"\n\n$bodyObj = [ordered]@{\n    subscriptionId = $Env:SUBSCRIPTION_ID\n    tenantId = $Env:TENANT_ID\n    applicationId = $Env:CLIENT_ID\n    clientSecret = $Env:CLIENT_SECRET\n    name = $subscriptionDisplayName\n    directoryDomain = $Env:DIRECTORY_DOMAIN\n    isProd = [bool]::Parse($Env:IS_PROD)\n    isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN)\n    isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n    isIacAutoDiscoveryDisabled = $false\n}\n\n$body = $bodyObj | ConvertTo-Json -Compress\n\ntry {\n    $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/integrations/azure/' -Headers $headers -Body $body\n    \n    if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n        Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n    } else {\n        Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n        exit 1\n    }\n} catch {\n    Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n    \n    if ($_.Exception.Response) {\n        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())\n        $reader.BaseStream.Position = 0\n        $reader.DiscardBufferedData()\n        $responseBody = $reader.ReadToEnd()\n        Write-Host \"Response body: $responseBody\"\n    }\n    \n    exit 1\n}\n\nWrite-Host \"Integration process completed successfully\""
+                      }
                     }
                   ]
                 }
@@ -535,34 +577,6 @@
                   ],
                   "outputs": {}
                 }
-              }
-            },
-            {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "Microsoft.Resources/deploymentScripts",
-              "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "kind": "AzurePowerShell",
-              "properties": {
-                "retentionInterval": "PT1H",
-                "timeout": "PT2M",
-                "containerSettings": {},
-                "cleanupPreference": "Always",
-                "azPowerShellVersion": "8.1",
-                "environmentVariables": [
-                  { "name": "SUBSCRIPTION_ID", "value": "[parameters('targetSubscriptionId')]" },
-                  { "name": "CLIENT_ID", "value": "[parameters('servicePrincipalClientId')]" },
-                  { "name": "CLIENT_SECRET", "secureValue": "[parameters('servicePrincipalClientSecret')]" },
-                  { "name": "FIREFLY_ACCESS_KEY", "secureValue": "[parameters('fireflyAccessKey')]" },
-                  { "name": "FIREFLY_SECRET_KEY", "secureValue": "[parameters('fireflySecretKey')]" },
-                  { "name": "TENANT_ID", "value": "[subscription().tenantId]" },
-                  { "name": "IS_PROD", "value": "[parameters('isProd')]" },
-                  { "name": "IS_EVENT_DRIVEN", "value": "[parameters('eventDrivenEnabled')]" },
-                  { "name": "IS_AUTO_DISCOVER", "value": "false" },
-                  { "name": "DIRECTORY_DOMAIN", "value": "[parameters('directoryDomain')]" }
-                ],
-                "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n# Get subscription details\ntry {\n    $subscription = Get-AzSubscription -SubscriptionId $Env:SUBSCRIPTION_ID -ErrorAction Stop\n    $subscriptionDisplayName = $subscription.Name\n} catch {\n    Write-Warning \"Could not retrieve subscription details for $Env:SUBSCRIPTION_ID. Using ID as name.\"\n    $subscriptionDisplayName = $Env:SUBSCRIPTION_ID\n}\n\nWrite-Host \"Creating integration for subscription: $subscriptionDisplayName ($Env:SUBSCRIPTION_ID)\"\n\n$bodyObj = [ordered]@{\n    subscriptionId = $Env:SUBSCRIPTION_ID\n    tenantId = $Env:TENANT_ID\n    applicationId = $Env:CLIENT_ID\n    clientSecret = $Env:CLIENT_SECRET\n    name = $subscriptionDisplayName\n    directoryDomain = $Env:DIRECTORY_DOMAIN\n    isProd = [bool]::Parse($Env:IS_PROD)\n    isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN)\n    isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n    isIacAutoDiscoveryDisabled = $false\n}\n\n$body = $bodyObj | ConvertTo-Json -Compress\n\ntry {\n    $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://api-env1.dev.firefly.ai/api/integrations/azure/' -Headers $headers -Body $body\n    \n    if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n        Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n    } else {\n        Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n        exit 1\n    }\n} catch {\n    Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n    \n    if ($_.Exception.Response) {\n        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())\n        $reader.BaseStream.Position = 0\n        $reader.DiscardBufferedData()\n        $responseBody = $reader.ReadToEnd()\n        Write-Host \"Response body: $responseBody\"\n    }\n    \n    exit 1\n}\n\nWrite-Host \"Integration process completed successfully\""
               }
             }
 
