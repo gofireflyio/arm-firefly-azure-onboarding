@@ -412,7 +412,7 @@
                       "location": "global",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
-                        "source": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
+                        "source": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
                         "topicType": "Microsoft.Storage.StorageAccounts"
                       },
                       "dependsOn": [
