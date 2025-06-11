@@ -409,7 +409,7 @@
                       "type": "Microsoft.EventGrid/systemTopics",
                       "apiVersion": "2021-12-01",
                       "name": "[parameters('uniqueEventGridTopicName')]",
-                      "location": "[parameters('location')]",
+                      "location": "global",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
                         "source": "[concat('/subscriptions/', subscription().subscriptionId)]",
