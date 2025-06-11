@@ -369,59 +369,74 @@
       }
     },
     {
-      "copy": {
-        "name": "resourceGroupsCopy",
-        "count": "[if(parameters('eventDrivenEnabled'), length(parameters('subscriptionsList')), 0)]",
-        "mode": "Parallel"
-      },
       "condition": "[parameters('eventDrivenEnabled')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
-      "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
+      "type": "Microsoft.Resources/deployments", 
+      "apiVersion": "2020-10-01",
+      "name": "[concat('create-all-resource-groups-', parameters('newguid'))]",
       "location": "[parameters('location')]",
       "properties": {
         "mode": "Incremental",
-        "expressionEvaluationOptions": {
-            "scope": "inner"
-        },
-        "parameters": {
-          "resourceGroupName": {
-              "value": "[concat(parameters('resourceGroupPrefix'), '-', take(parameters('subscriptionsList')[copyIndex()], 8))]"
-          },
-          "location": {
-              "value": "[parameters('location')]"
-          },
-          "tags": {
-              "value": "[variables('mergedTags')]"
-          }
-        },
         "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
           "parameters": {
-              "resourceGroupName": {
-                  "type": "string"
-              },
-              "location": {
-                  "type": "string"
-              },
-              "tags": {
-                  "type": "object"
-              }
+            "subscriptionsList": {
+              "type": "array"
+            },
+            "resourceGroupPrefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
           },
-          "variables": {},
           "resources": [
             {
-              "type": "Microsoft.Resources/resourceGroups",
+              "copy": {
+                "name": "createResourceGroups",
+                "count": "[length(parameters('subscriptionsList'))]"
+              },
+              "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[parameters('resourceGroupName')]",
+              "name": "[concat('rg-', copyIndex(), '-deployment')]",
+              "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
               "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {}
+              "properties": {
+                "mode": "Incremental",
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "resources": [
+                    {
+                      "type": "Microsoft.Resources/resourceGroups",
+                      "apiVersion": "2021-04-01",
+                      "name": "[concat(parameters('resourceGroupPrefix'), '-', take(parameters('subscriptionsList')[copyIndex()], 8))]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('tags')]",
+                      "properties": {}
+                    }
+                  ]
+                }
+              }
             }
-          ],
-          "outputs": {}
+          ]
+        },
+        "parameters": {
+          "subscriptionsList": {
+            "value": "[parameters('subscriptionsList')]"
+          },
+          "resourceGroupPrefix": {
+            "value": "[parameters('resourceGroupPrefix')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('mergedTags')]"
+          }
         }
       }
     },
@@ -438,7 +453,8 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]"
+        "[concat('create-all-resource-groups-', parameters('newguid'))]",
+        "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -559,7 +575,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
+        "[concat('create-all-resource-groups-', parameters('newguid'))]",
         "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]"
       ],
       "properties": {
@@ -672,7 +688,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[concat('firefly-rg-', copyIndex(), '-', parameters('newguid'))]",
+        "[concat('create-all-resource-groups-', parameters('newguid'))]",
         "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]",
         "[concat('firefly-custom-roles-', parameters('newguid'))]"
       ],
@@ -760,6 +776,7 @@
       "subscriptionId": "[parameters('subscriptionsList')[copyIndex()]]",
       "location": "[parameters('location')]",
       "dependsOn": [
+        "[concat('create-all-resource-groups-', parameters('newguid'))]",
         "[concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))]"
       ],
       "properties": {
@@ -769,7 +786,7 @@
         },
         "parameters": {
           "storageAccountId": {
-              "value": "[concat('/subscriptions/', parameters('subscriptionsList')[copyIndex()], '/resourceGroups/', parameters('resourceGroupPrefix'), '-', take(parameters('subscriptionsList')[copyIndex()], 8), '/providers/Microsoft.Storage/storageAccounts/', 'firefly', uniqueString(parameters('subscriptionsList')[copyIndex()]))]"
+              "value": "[reference(concat('firefly-storage-', copyIndex(), '-', parameters('newguid'))).outputs.storageAccountId.value]"
           },
           "subscriptionId": {
               "value": "[parameters('subscriptionsList')[copyIndex()]]"
