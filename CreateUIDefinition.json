@@ -53,6 +53,19 @@
             "visible": true
           },
           {
+            "name": "resourceGroupPrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Resource Group Prefix",
+            "defaultValue": "firefly-rg",
+            "toolTip": "Prefix for resource groups that will be created in each selected subscription. Resource groups will be named: {prefix}-{subscription-short-name}",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9]([a-zA-Z0-9-._])*[a-zA-Z0-9]$",
+              "validationMessage": "Resource group prefix must start and end with alphanumeric characters and can contain hyphens, underscores, periods, and parentheses."
+            },
+            "visible": true
+          },
+          {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
             "label": "Production Environment",
@@ -158,6 +171,7 @@
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "subscriptionsList": "[steps('integrationConfig').subscriptionsList]",
+      "resourceGroupPrefix": "[steps('integrationConfig').resourceGroupPrefix]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]"
