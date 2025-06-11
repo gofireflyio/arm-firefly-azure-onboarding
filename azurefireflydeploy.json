@@ -414,14 +414,14 @@
                         "source": "[concat('/subscriptions/', subscription().subscriptionId)]",
                         "topicType": "Microsoft.Resources.Subscriptions"
                       }
-                                         },
-                     {
-                       "condition": "[parameters('eventDrivenEnabled')]",
-                       "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+                    },
+                    {
+                      "condition": "[parameters('eventDrivenEnabled')]",
+                      "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
                       "apiVersion": "2021-12-01",
                       "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
                       "dependsOn": [
-                        "[resourceId('Microsoft.EventGrid/systemTopics', parameters('uniqueEventGridTopicName'))]"
+                        "[parameters('uniqueEventGridTopicName')]"
                       ],
                       "properties": {
                         "destination": {
