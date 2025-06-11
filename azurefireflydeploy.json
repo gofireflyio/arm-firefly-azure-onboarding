@@ -119,7 +119,7 @@
   "variables": {
     "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
     "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]",
-    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
+    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), array(subscription().subscriptionId))]"
   },
   "resources": [
     {
