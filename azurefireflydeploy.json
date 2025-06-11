@@ -130,16 +130,16 @@
           "parameters": {},
           "variables": {
             "mergedTags": "[variables('mergedTags')]",
-            "uniqueStorageAccountName": "[concat('firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]",
-            "uniqueEventGridTopicName": "[concat('firefly-events-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]",
-            "uniqueCustomRoleName": "[concat('Firefly-', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
+            "uniqueStorageAccountName": "[concat('firefly', uniqueString(subscription().subscriptionId))]",
+            "uniqueEventGridTopicName": "[concat('firefly-events-', substring(subscription().subscriptionId, 0, 8), '-', parameters('newguid'))]",
+            "uniqueCustomRoleName": "[concat('Firefly-', uniqueString(subscription().subscriptionId))]"
           },
           "resources": [
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-roles-', parameters('newguid'), '-', copyIndex())]",
-              "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
+              "name": "[concat('firefly-roles-', parameters('newguid'))]",
+              "subscriptionId": "[subscription().subscriptionId]",
               "location": "[parameters('location')]",
               "properties": {
                 "mode": "Incremental",
@@ -276,7 +276,7 @@
               }
             },
             {
-              "condition": "[and(equals(copyIndex(), 0), parameters('eventDrivenEnabled'))]",
+              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-integration-script-', parameters('newguid'))]",
@@ -289,7 +289,7 @@
                 "cleanupPreference": "Always",
                 "azPowerShellVersion": "8.1",
                 "environmentVariables": [
-                  { "name": "SUBSCRIPTION_ID", "value": "[variables('effectiveSubscriptions')[copyIndex()]]" },
+                  { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" },
                   { "name": "CLIENT_ID", "value": "[parameters('servicePrincipalClientId')]" },
                   { "name": "CLIENT_SECRET", "secureValue": "[parameters('servicePrincipalClientSecret')]" },
                   { "name": "FIREFLY_ACCESS_KEY", "secureValue": "[parameters('fireflyAccessKey')]" },
@@ -377,7 +377,7 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', resourceGroup().id, parameters('newguid'), copyIndex())]",
+              "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', resourceGroup().id, parameters('newguid'))]",
               "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('uniqueStorageAccountName'))]",
               "properties": {
                 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
@@ -392,7 +392,7 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', resourceGroup().id, parameters('newguid'), copyIndex())]",
+              "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', resourceGroup().id, parameters('newguid'))]",
               "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('uniqueStorageAccountName'))]",
               "properties": {
                 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
@@ -401,15 +401,15 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('uniqueStorageAccountName'))]",
-                "[concat('firefly-roles-', parameters('newguid'), '-', copyIndex())]"
+                "[concat('firefly-roles-', parameters('newguid'))]"
               ]
             },
             {
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-diag-settings-', copyIndex(), '-', parameters('newguid'))]",
-              "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
+              "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
+              "subscriptionId": "[subscription().subscriptionId]",
               "location": "[parameters('location')]",
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('uniqueStorageAccountName'))]"
@@ -461,7 +461,7 @@
           "outputs": {
             "subscriptionId": {
               "type": "string",
-              "value": "[variables('effectiveSubscriptions')[copyIndex()]]"
+              "value": "[subscription().subscriptionId]"
             },
             "storageAccountName": {
               "condition": "[parameters('eventDrivenEnabled')]",
