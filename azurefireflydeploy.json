@@ -404,7 +404,6 @@
                       }
                     },
                     {
-                      "condition": "[parameters('eventDrivenEnabled')]",
                       "type": "Microsoft.EventGrid/systemTopics",
                       "apiVersion": "2021-12-01",
                       "name": "[parameters('uniqueEventGridTopicName')]",
@@ -416,7 +415,6 @@
                       }
                     },
                     {
-                      "condition": "[parameters('eventDrivenEnabled')]",
                       "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
                       "apiVersion": "2021-12-01",
                       "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
