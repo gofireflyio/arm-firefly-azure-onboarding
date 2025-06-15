@@ -414,7 +414,7 @@
                       "location": "global",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
-                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
+                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/firefly-monitoring-', parameters('targetSubscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
                         "topicType": "Microsoft.Storage.StorageAccounts"
                       },
                       "dependsOn": [
