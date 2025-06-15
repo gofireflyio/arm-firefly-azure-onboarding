@@ -400,6 +400,7 @@
                       "kind": "StorageV2",
                       "properties": {
                         "accessTier": "Hot",
+                        "allowBlobPublicAccess": true,
                         "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
                       }
                     },
