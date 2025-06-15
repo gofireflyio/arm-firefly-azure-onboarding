@@ -214,7 +214,7 @@
       "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "tags": "[if(empty(steps('integrationConfig').tags), createObject(), parse(steps('integrationConfig').tags))]"
+      "tags": "[parse(if(empty(steps('integrationConfig').tags), '{}', steps('integrationConfig').tags))]"
     }
   }
 }
