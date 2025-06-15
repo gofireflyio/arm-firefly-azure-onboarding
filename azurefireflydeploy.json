@@ -415,7 +415,7 @@
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
                         "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/firefly-monitoring-', parameters('targetSubscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
-                        "topicType": "Microsoft.Storage.StorageAccounts"
+                        "topicType": "microsoft.storage.storageaccounts"
                       },
                       "dependsOn": [
                         "[parameters('uniqueStorageAccountName')]"
