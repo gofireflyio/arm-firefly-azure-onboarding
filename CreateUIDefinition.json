@@ -66,8 +66,8 @@
             "placeholder": "{\"Environment\":\"Production\",\"Department\":\"IT\"}",
             "constraints": {
               "required": false,
-              "regex": "^(\\{.*\\}|\\s*)$",
-              "validationMessage": "Must be a valid JSON object or empty"
+              "regex": "^(\\s*\\{\\s*\"[^\"]+\"\\s*:\\s*\"[^\"]+\"(\\s*,\\s*\"[^\"]+\"\\s*:\\s*\"[^\"]+\")*\\s*\\}\\s*|\\s*)$",
+              "validationMessage": "Must be a valid JSON object with string key-value pairs (e.g., {\"Environment\":\"Production\",\"Department\":\"IT\"}) or empty"
             },
             "visible": true
           },
@@ -214,7 +214,7 @@
       "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "tags": "[parse(if(empty(steps('integrationConfig').tags), '{}', steps('integrationConfig').tags))]"
+      "tags": "[if(or(empty(steps('integrationConfig').tags), equals(trim(steps('integrationConfig').tags), '')), parse('{}'), parse(steps('integrationConfig').tags))]"
     }
   }
 }
