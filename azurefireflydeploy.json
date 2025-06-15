@@ -400,10 +400,6 @@
                       "kind": "StorageV2",
                       "properties": {
                         "accessTier": "Hot",
-                        "minimumTlsVersion": "TLS1_2",
-                        "supportsHttpsTrafficOnly": true,
-                        "allowBlobPublicAccess": false,
-                        "crossTenantReplicationEnabled": false,
                         "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
                       }
                     },
