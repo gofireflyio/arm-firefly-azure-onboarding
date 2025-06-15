@@ -138,6 +138,7 @@
           "fireflyEips": { "value": "[parameters('fireflyEips')]" },
           "isProd": { "value": "[parameters('isProd')]" },
           "newguid": { "value": "[parameters('newguid')]" },
+          "directoryDomain": { "value": "[parameters('directoryDomain')]" },
           "location": { "value": "[parameters('location')]" }
         },
         "template": {
@@ -160,6 +161,7 @@
             "fireflyEips": { "type": "array" },
             "isProd": { "type": "bool" },
             "newguid": { "type": "string" },
+            "directoryDomain": { "type": "string" },
             "location": { "type": "string" }
           },
           "variables": {
@@ -518,6 +520,7 @@
                   "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
                   "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
                   "isProd": { "value": "[parameters('isProd')]" },
+                  "directoryDomain": { "value": "[parameters('directoryDomain')]" },
                   "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
                   "newguid": { "value": "[parameters('newguid')]" },
                   "location": { "value": "[parameters('location')]" }
@@ -532,6 +535,7 @@
                     "fireflyAccessKey": { "type": "securestring" },
                     "fireflySecretKey": { "type": "securestring" },
                     "isProd": { "type": "bool" },
+                    "directoryDomain": { "type": "string" },
                     "eventDrivenEnabled": { "type": "bool" },
                     "newguid": { "type": "string" },
                     "location": { "type": "string" }
