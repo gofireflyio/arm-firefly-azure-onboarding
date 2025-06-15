@@ -29,12 +29,78 @@
         "label": "Integration Configuration",
         "elements": [
           {
+            "name": "eventDrivenEnabled",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Enable Event-Driven Monitoring",
+            "toolTip": "Enable event-driven monitoring for this subscription. When enabled, this will create storage accounts, event grid topics, and diagnostic settings for real-time monitoring.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          },
+          {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
             "label": "Production Environment",
-            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create a storage account, event grid topic, and diagnostic settings for real-time monitoring.",
+            "toolTip": "Check if this is a production environment.",
             "constraints": {
               "required": false
+            },
+            "visible": true
+          },
+          {
+            "name": "enforceStorageNetworkRules",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Enforce Storage Network Rules",
+            "toolTip": "Restrict storage account access to Firefly IP addresses only. When enabled, the storage account will only allow access from predefined Firefly IP addresses.",
+            "constraints": {
+              "required": false
+            },
+            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
+          },
+          {
+            "name": "tags",
+            "type": "Microsoft.Common.EditableGrid",
+            "label": "Tags",
+            "toolTip": "Add custom tags to be applied to all created Firefly resources. A 'firefly: true' tag will be automatically added.",
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 10
+                }
+              },
+              "columns": [
+                {
+                  "id": "key",
+                  "header": "Key",
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Enter tag key",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_-]+$",
+                      "validationMessage": "Tag keys can only contain letters, numbers, underscores, and hyphens"
+                    }
+                  }
+                },
+                {
+                  "id": "value",
+                  "header": "Value",
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Enter tag value",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_\\-\\s\\.]+$",
+                      "validationMessage": "Tag values can contain letters, numbers, spaces, underscores, hyphens, and periods"
+                    }
+                  }
+                }
+              ]
             },
             "visible": true
           },
@@ -178,7 +244,10 @@
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
       "isMultiSubscription": "[steps('integrationConfig').isMultiSubscription]",
-      "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]"
+      "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
+      "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
+      "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
+      "tags": "[steps('integrationConfig').tags]"
     }
   }
 }
