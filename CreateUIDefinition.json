@@ -60,48 +60,14 @@
           },
           {
             "name": "tags",
-            "type": "Microsoft.Common.EditableGrid",
-            "ariaLabel": "Custom tags for Firefly resources",
-            "label": "Tags",
-            "toolTip": "Add custom tags to be applied to all created Firefly resources. A 'firefly: true' tag will be automatically added.",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Tags (JSON Format)",
+            "toolTip": "Enter custom tags as a JSON object (e.g., {\"Environment\":\"Production\",\"Department\":\"IT\"}). A 'firefly: true' tag will be automatically added.",
+            "placeholder": "{\"Environment\":\"Production\",\"Department\":\"IT\"}",
             "constraints": {
-              "width": "Full",
-              "rows": {
-                "count": {
-                  "min": 0,
-                  "max": 10
-                }
-              },
-              "columns": [
-                {
-                  "id": "key",
-                  "header": "Key",
-                  "width": "1fr",
-                  "element": {
-                    "type": "Microsoft.Common.TextBox",
-                    "placeholder": "Enter tag key",
-                    "constraints": {
-                      "required": true,
-                      "regex": "^[a-zA-Z0-9_-]+$",
-                      "validationMessage": "Tag keys can only contain letters, numbers, underscores, and hyphens"
-                    }
-                  }
-                },
-                {
-                  "id": "value",
-                  "header": "Value",
-                  "width": "1fr",
-                  "element": {
-                    "type": "Microsoft.Common.TextBox",
-                    "placeholder": "Enter tag value",
-                    "constraints": {
-                      "required": true,
-                      "regex": "^[a-zA-Z0-9_\\-\\s\\.]+$",
-                      "validationMessage": "Tag values can contain letters, numbers, spaces, underscores, hyphens, and periods"
-                    }
-                  }
-                }
-              ]
+              "required": false,
+              "regex": "^(\\{.*\\}|\\s*)$",
+              "validationMessage": "Must be a valid JSON object or empty"
             },
             "visible": true
           },
@@ -248,7 +214,7 @@
       "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "tags": "[if(greater(length(steps('integrationConfig').tags), 0), parse(concat('{', join(map(steps('integrationConfig').tags, (item) => concat('\"', item.key, '\":\"', item.value, '\"')), ','), '}')), createObject())]"
+      "tags": "[if(empty(steps('integrationConfig').tags), createObject(), parse(steps('integrationConfig').tags))]"
     }
   }
 }
