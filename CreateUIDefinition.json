@@ -248,7 +248,7 @@
       "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "tags": "[steps('integrationConfig').tags]"
+      "tags": "[if(greater(length(steps('integrationConfig').tags), 0), parse(concat('{', join(map(steps('integrationConfig').tags, (item) => concat('\"', item.key, '\":\"', item.value, '\"')), ','), '}')), createObject())]"
     }
   }
 }
