@@ -44,7 +44,7 @@
     },
     "fireflyWebhookUrl": {
       "type": "string",
-      "defaultValue": "https://azureevents-env1.dev.firefly.ai",
+      "defaultValue": "https://azure-events.firefly.ai",
       "metadata": { "description": "Firefly webhook URL for event notifications" }
     },
     "enforceStorageNetworkRules": {
@@ -283,7 +283,7 @@
                         "principalId": "[parameters('servicePrincipalObjectId')]",
                         "principalType": "ServicePrincipal",
                         "conditionVersion": "2.0",
-                        "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))"
+                        "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state') OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*.tfstateenv:*'))"
                       }
                     },
                     {
@@ -411,7 +411,7 @@
                       "type": "Microsoft.EventGrid/systemTopics",
                       "apiVersion": "2021-12-01",
                       "name": "[parameters('uniqueEventGridTopicName')]",
-                      "location": "global",
+                      "location": "[parameters('location')]",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
                         "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/firefly-monitoring-', parameters('targetSubscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
