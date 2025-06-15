@@ -44,7 +44,7 @@
     },
     "fireflyWebhookUrl": {
       "type": "string",
-      "defaultValue": "https://azure-events.firefly.ai",
+      "defaultValue": "https://azureevents-env1.dev.firefly.ai",
       "metadata": { "description": "Firefly webhook URL for event notifications" }
     },
     "enforceStorageNetworkRules": {
