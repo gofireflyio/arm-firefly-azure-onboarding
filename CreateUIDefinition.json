@@ -61,6 +61,7 @@
           {
             "name": "tags",
             "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "Custom tags for resources",
             "label": "Tags",
             "toolTip": "Add custom tags for your resources. A 'firefly: true' tag will be automatically added.",
             "constraints": {
