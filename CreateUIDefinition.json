@@ -60,14 +60,47 @@
           },
           {
             "name": "tags",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Tags (JSON Format)",
-            "toolTip": "Enter custom tags as a JSON object (e.g., {\"Environment\":\"Production\",\"Department\":\"IT\"}). A 'firefly: true' tag will be automatically added.",
-            "placeholder": "{\"Environment\":\"Production\",\"Department\":\"IT\"}",
+            "type": "Microsoft.Common.EditableGrid",
+            "label": "Tags",
+            "toolTip": "Add custom tags for your resources. A 'firefly: true' tag will be automatically added.",
             "constraints": {
-              "required": false,
-              "regex": "^(\\s*\\{\\s*\"[^\"]+\"\\s*:\\s*\"[^\"]+\"(\\s*,\\s*\"[^\"]+\"\\s*:\\s*\"[^\"]+\")*\\s*\\}\\s*|\\s*)$",
-              "validationMessage": "Must be a valid JSON object with string key-value pairs (e.g., {\"Environment\":\"Production\",\"Department\":\"IT\"}) or empty"
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 10
+                }
+              },
+              "columns": [
+                {
+                  "id": "tagName",
+                  "header": "Tag Name",
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Environment",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_-]+$",
+                      "validationMessage": "Tag name must contain only letters, numbers, underscores, and hyphens"
+                    }
+                  }
+                },
+                {
+                  "id": "tagValue",
+                  "header": "Tag Value", 
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Production",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_\\s-]+$",
+                      "validationMessage": "Tag value must contain only letters, numbers, spaces, underscores, and hyphens"
+                    }
+                  }
+                }
+              ]
             },
             "visible": true
           },

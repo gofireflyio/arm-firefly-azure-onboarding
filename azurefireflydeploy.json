@@ -64,9 +64,9 @@
       "metadata": { "description": "Firefly IP addresses for storage account network rules" }
     },
     "tags": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Tags to apply to created resources as JSON string" }
+      "type": "array",
+      "defaultValue": [],
+      "metadata": { "description": "Tags to apply to created resources as array from EditableGrid" }
     },
     "isProd": {
       "type": "bool",
@@ -87,8 +87,9 @@
     }
   },
   "variables": {
-    "parsedTags": "[if(or(empty(parameters('tags')), equals(parameters('tags'), '')), createObject(), json(parameters('tags')))]",
-    "mergedTags": "[union(variables('parsedTags'), createObject('firefly', 'true'))]",
+    "tagsArray": "[parameters('tags')]",
+    "tagsObject": "[if(empty(variables('tagsArray')), createObject(), json(concat('{', join(map(variables('tagsArray'), lambda('tag', concat('\"', lambdaVariables('tag').tagName, '\":\"', lambdaVariables('tag').tagValue, '\"'))), ','), '}')))]",
+    "mergedTags": "[union(variables('tagsObject'), createObject('firefly', 'true'))]",
     "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
   },
   "resources": [
