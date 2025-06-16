@@ -88,8 +88,8 @@
   },
   "variables": {
     "tagsArray": "[parameters('tags')]",
-    "tagsObject": "[if(empty(variables('tagsArray')), createObject(), json(concat('{', join(map(variables('tagsArray'), lambda('tag', concat('\"', lambdaVariables('tag').tagName, '\":\"', lambdaVariables('tag').tagValue, '\"'))), ','), '}')))]",
-    "mergedTags": "[union(variables('tagsObject'), createObject('firefly', 'true'))]",
+    "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
+    "mergedTags": "[union(variables('customTagsObject'), createObject('firefly', 'true'))]",
     "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
   },
   "resources": [
@@ -671,6 +671,16 @@
           "deploymentName": "[concat('firefly-deployment-', copyIndex(), '-', parameters('newguid'))]",
           "status": "Deployed"
         }
+      }
+    },
+    "taggingDebug": {
+      "type": "object",
+      "value": {
+        "inputTagsArray": "[variables('tagsArray')]",
+        "arrayLength": "[length(variables('tagsArray'))]",
+        "customTagsObject": "[variables('customTagsObject')]",
+        "mergedTags": "[variables('mergedTags')]",
+        "finalTagCount": "[length(variables('mergedTags'))]"
       }
     }
   }
