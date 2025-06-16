@@ -89,7 +89,7 @@
   "variables": {
     "tagsArray": "[parameters('tags')]",
     "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
-    "mergedTags": "[union(variables('customTagsObject'), createObject('firefly', 'true'))]",
+    "mergedTags": "[union(createObject('firefly', 'true'), variables('customTagsObject'))]",
     "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
   },
   "resources": [
