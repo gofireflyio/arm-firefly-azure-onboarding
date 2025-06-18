@@ -89,13 +89,15 @@
                     "scope": "inner"
                 },
                 "parameters": {
-                  "newguid": { "value": "[parameters('newguid')]" }
+                  "newguid": { "value": "[parameters('newguid')]" },
+                  "location": { "value": "[parameters('location')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
                   "parameters": {
-                    "newguid": { "type": "string" }
+                    "newguid": { "type": "string" },
+                    "location": { "type": "string" }
                   },
                   "variables": {},
                   "resources": [
