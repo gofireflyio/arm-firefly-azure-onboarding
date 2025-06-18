@@ -90,7 +90,8 @@
                 },
                 "parameters": {
                   "newguid": { "value": "[parameters('newguid')]" },
-                  "location": { "value": "[parameters('location')]" }
+                  "location": { "value": "[parameters('location')]" },
+                  "targetSubscriptionId": { "value": "[parameters('targetSubscriptionId')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
@@ -270,6 +271,9 @@
                   },
                   "location": {
                     "value": "[parameters('location')]"
+                  },
+                  "targetSubscriptionId": {
+                    "value": "[parameters('targetSubscriptionId')]"
                   }
                 },
                 "template": {
@@ -279,7 +283,8 @@
                     "customRoleName": { "type": "string" },
                     "storageBlobReaderRoleName": { "type": "string" },
                     "newguid": { "type": "string" },
-                    "location": { "type": "string" }
+                    "location": { "type": "string" },
+                    "targetSubscriptionId": { "type": "string" }
                   },
                   "variables": {},
                   "resources": [
@@ -298,7 +303,7 @@
                         "environmentVariables": [
                           { "name": "CUSTOM_ROLE_NAME", "value": "[parameters('customRoleName')]" },
                           { "name": "STORAGE_BLOB_READER_ROLE_NAME", "value": "[parameters('storageBlobReaderRoleName')]" },
-                          { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" }
+                          { "name": "SUBSCRIPTION_ID", "value": "[parameters('targetSubscriptionId')]" }
                         ],
                         "scriptContent": "# Remove custom role definitions\ntry {\n    Write-Host \"Removing custom role definitions for Firefly\"\n    \n    # Remove the main Firefly custom role\n    $customRoleId = [guid]::new(\"fireflyCustomRole\" + $Env:SUBSCRIPTION_ID).ToString()\n    $customRole = Get-AzRoleDefinition -Id $customRoleId -ErrorAction SilentlyContinue\n    if ($customRole) {\n        Remove-AzRoleDefinition -Id $customRoleId -Force -ErrorAction SilentlyContinue\n        Write-Host \"Removed custom role: $Env:CUSTOM_ROLE_NAME\"\n    } else {\n        Write-Host \"Custom role $Env:CUSTOM_ROLE_NAME not found, skipping removal\"\n    }\n    \n    # Remove the storage blob reader custom role\n    $storageBlobRoleId = [guid]::new(\"fireflyStorageBlobReader\" + $Env:SUBSCRIPTION_ID).ToString()\n    $storageBlobRole = Get-AzRoleDefinition -Id $storageBlobRoleId -ErrorAction SilentlyContinue\n    if ($storageBlobRole) {\n        Remove-AzRoleDefinition -Id $storageBlobRoleId -Force -ErrorAction SilentlyContinue\n        Write-Host \"Removed storage blob reader role: $Env:STORAGE_BLOB_READER_ROLE_NAME\"\n    } else {\n        Write-Host \"Storage blob reader role $Env:STORAGE_BLOB_READER_ROLE_NAME not found, skipping removal\"\n    }\n    \n} catch {\n    Write-Warning \"Error during role definition cleanup: $($_.Exception.Message)\"\n}\n\nWrite-Host \"Role definitions cleanup completed\""
                       }
