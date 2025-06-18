@@ -35,15 +35,26 @@
     }
   },
   "variables": {
-    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
+    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]",
+    "tempResourceGroupName": "[concat('firefly-temp-cleanup-', parameters('newguid'))]"
   },
   "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('tempResourceGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {}
+    },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-offboard-', copyIndex(), '-', parameters('newguid'))]",
       "location": "[parameters('location')]",
       "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
+      "dependsOn": [
+        "[variables('tempResourceGroupName')]"
+      ],
       "copy": {
         "name": "offboardingLoop",
         "count": "[length(variables('effectiveSubscriptions'))]"
@@ -58,7 +69,8 @@
           "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
           "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
           "newguid": { "value": "[parameters('newguid')]" },
-          "location": { "value": "[parameters('location')]" }
+          "location": { "value": "[parameters('location')]" },
+          "tempResourceGroupName": { "value": "[variables('tempResourceGroupName')]" }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
@@ -68,7 +80,8 @@
             "servicePrincipalObjectId": { "type": "string" },
             "eventDrivenEnabled": { "type": "bool" },
             "newguid": { "type": "string" },
-            "location": { "type": "string" }
+            "location": { "type": "string" },
+            "tempResourceGroupName": { "type": "string" }
           },
           "variables": {
             "resourceGroupName": "[concat('firefly-monitoring-', parameters('targetSubscriptionId'))]",
@@ -81,8 +94,7 @@
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-cleanup-diag-settings-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "subscriptionId": "[parameters('targetSubscriptionId')]",
+              "resourceGroup": "[parameters('tempResourceGroupName')]",
               "properties": {
                 "mode": "Incremental",
                 "expressionEvaluationOptions": {
@@ -94,7 +106,7 @@
                   "targetSubscriptionId": { "value": "[parameters('targetSubscriptionId')]" }
                 },
                 "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "newguid": { "type": "string" },
@@ -130,8 +142,7 @@
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-cleanup-role-assignments-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "subscriptionId": "[parameters('targetSubscriptionId')]",
+              "resourceGroup": "[parameters('tempResourceGroupName')]",
               "dependsOn": [
                 "[concat('firefly-cleanup-diag-settings-', parameters('newguid'))]"
               ],
@@ -155,7 +166,7 @@
                   }
                 },
                 "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "servicePrincipalObjectId": { "type": "string" },
@@ -192,8 +203,7 @@
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-cleanup-resource-groups-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "subscriptionId": "[parameters('targetSubscriptionId')]",
+              "resourceGroup": "[parameters('tempResourceGroupName')]",
               "dependsOn": [
                 "[concat('firefly-cleanup-role-assignments-', parameters('newguid'))]"
               ],
@@ -214,7 +224,7 @@
                   }
                 },
                 "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "resourceGroupName": { "type": "string" },
@@ -249,8 +259,7 @@
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-cleanup-role-definitions-', parameters('newguid'))]",
-              "location": "[parameters('location')]",
-              "subscriptionId": "[parameters('targetSubscriptionId')]",
+              "resourceGroup": "[parameters('tempResourceGroupName')]",
               "dependsOn": [
                 "[concat('firefly-cleanup-resource-groups-', parameters('newguid'))]"
               ],
@@ -277,7 +286,7 @@
                   }
                 },
                 "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "customRoleName": { "type": "string" },
