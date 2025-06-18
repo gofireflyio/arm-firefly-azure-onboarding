@@ -191,7 +191,7 @@
             "visible": true,
             "options": {
               "icon": "Info",
-              "text": "[concat('📋 CLEANUP SUMMARY:\\n\\n🎯 Target: ', if(steps('cleanupConfig').isMultiSubscription, concat(string(length(steps('cleanupConfig').targetSubscriptions)), ' subscriptions'), '1 subscription (current)'), '\\n🔧 Service Principal: ', steps('cleanupConfig').servicePrincipalObjectId, '\\n📊 Event-driven cleanup: ', if(steps('cleanupConfig').eventDrivenEnabled, 'Yes', 'No'), '\\n\\n⏱️ Estimated cleanup time: 10-15 minutes\\n\\n🚀 After clicking Create, monitor the deployment progress in the Azure portal.')]"
+              "text": "[concat('📋 CLEANUP SUMMARY:\\n\\n🎯 Target: ', if(steps('cleanupConfig').isMultiSubscription, concat(string(length(steps('cleanupConfig').targetSubscriptions)), ' subscriptions'), '1 subscription (current)'), '\\n🔧 Service Principal: ', steps('cleanupConfig').servicePrincipalSelector.name, '\\n📊 Event-driven cleanup: ', if(steps('cleanupConfig').eventDrivenEnabled, 'Yes', 'No'), '\\n\\n⏱️ Estimated cleanup time: 10-15 minutes\\n\\n🚀 After clicking Create, monitor the deployment progress in the Azure portal.')]"
             }
           },
           {
