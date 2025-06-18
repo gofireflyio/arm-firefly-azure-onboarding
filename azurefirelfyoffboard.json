@@ -93,7 +93,7 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-cleanup-diag-settings-', parameters('newguid'))]",
+              "name": "[concat('firefly-cleanup-diag-', parameters('newguid'))]",
               "resourceGroup": "[parameters('tempResourceGroupName')]",
               "properties": {
                 "mode": "Incremental",
@@ -144,7 +144,7 @@
               "name": "[concat('firefly-cleanup-role-assignments-', parameters('newguid'))]",
               "resourceGroup": "[parameters('tempResourceGroupName')]",
               "dependsOn": [
-                "[concat('firefly-cleanup-diag-settings-', parameters('newguid'))]"
+                "[concat('firefly-cleanup-diag-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
