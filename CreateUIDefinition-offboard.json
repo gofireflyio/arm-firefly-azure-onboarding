@@ -38,16 +38,26 @@
         "label": "Cleanup Configuration",
         "elements": [
           {
-            "name": "servicePrincipalObjectId",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Service Principal Object ID",
-            "defaultValue": "",
-            "toolTip": "Enter the Object ID of the service principal used during Firefly onboarding. This is required to remove role assignments.",
-            "placeholder": "12345678-1234-1234-1234-123456789012",
+            "name": "servicePrincipalSelector",
+            "type": "Microsoft.Common.ServicePrincipalSelector",
+            "label": {
+              "servicePrincipalId": "Service Principal",
+              "sectionHeader": "Select Firefly Service Principal"
+            },
+            "toolTip": {
+              "servicePrincipalId": "Select the service principal used during Firefly onboarding. This is required to remove role assignments."
+            },
+            "defaultValue": {
+              "principalId": "<default guid>",
+              "name": "Select existing service principal"
+            },
             "constraints": {
               "required": true,
-              "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-              "validationMessage": "Please enter a valid GUID format for the Service Principal Object ID"
+              "validationMessage": "Please select the Firefly service principal"
+            },
+            "options": {
+              "hideCertificate": true,
+              "hidePassword": true
             },
             "visible": true
           },
@@ -57,7 +67,7 @@
             "visible": true,
             "options": {
               "icon": "Info",
-              "text": "💡 How to find Service Principal Object ID:\n1. Go to Azure Active Directory > App registrations\n2. Find your Firefly integration app\n3. Click on the app name\n4. Copy the 'Object ID' from the overview page\n\nAlternatively, use Azure CLI: az ad sp list --display-name 'Firefly-Integration' --query '[].objectId' -o tsv"
+              "text": "💡 Select the service principal that was created during Firefly onboarding. This is typically named something like 'Firefly-Integration' or similar. The selected service principal's role assignments will be removed from all target subscriptions."
             }
           },
           {
@@ -198,7 +208,7 @@
     ],
     "outputs": {
       "location": "[steps('basics').location]",
-      "servicePrincipalObjectId": "[steps('cleanupConfig').servicePrincipalObjectId]",
+      "servicePrincipalObjectId": "[first(steps('cleanupConfig').servicePrincipalSelector.objectId)]",
       "targetSubscriptions": "[if(steps('cleanupConfig').isMultiSubscription, steps('cleanupConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "isMultiSubscription": "[steps('cleanupConfig').isMultiSubscription]",
       "eventDrivenEnabled": "[steps('cleanupConfig').eventDrivenEnabled]"
