@@ -97,7 +97,8 @@
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "newguid": { "type": "string" },
-                    "location": { "type": "string" }
+                    "location": { "type": "string" },
+                    "targetSubscriptionId": { "type": "string" }
                   },
                   "variables": {},
                   "resources": [
@@ -114,7 +115,7 @@
                         "cleanupPreference": "Always",
                         "azPowerShellVersion": "8.1",
                         "environmentVariables": [
-                          { "name": "SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" }
+                          { "name": "SUBSCRIPTION_ID", "value": "[parameters('targetSubscriptionId')]" }
                         ],
                         "scriptContent": "# Remove diagnostic settings\ntry {\n    $diagSettingName = \"firefly-diag-$Env:SUBSCRIPTION_ID\"\n    Write-Host \"Attempting to remove diagnostic setting: $diagSettingName\"\n    \n    # Check if diagnostic setting exists\n    $existingDiagSetting = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$Env:SUBSCRIPTION_ID\" -Name $diagSettingName -ErrorAction SilentlyContinue\n    \n    if ($existingDiagSetting) {\n        Remove-AzDiagnosticSetting -ResourceId \"/subscriptions/$Env:SUBSCRIPTION_ID\" -Name $diagSettingName\n        Write-Host \"Successfully removed diagnostic setting: $diagSettingName\"\n    } else {\n        Write-Host \"Diagnostic setting $diagSettingName not found, skipping removal\"\n    }\n} catch {\n    Write-Warning \"Failed to remove diagnostic setting: $($_.Exception.Message)\"\n}\n\nWrite-Host \"Diagnostic settings cleanup completed\""
                       }
