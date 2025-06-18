@@ -146,6 +146,12 @@ Firefly is a comprehensive cloud asset management platform that helps organizati
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-managementgroups.json)
 
+### **Option 3: Offboarding (Remove Firefly Integration)**
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefirelfyoffboard.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-offboard.json)
+
+⚠️ **Offboarding Template**: Completely removes all Azure resources created by Firefly onboarding.
+
 ## 📝 Step-by-Step Deployment Guide
 
 ### **Step 1: Service Principal Setup**
@@ -441,6 +447,14 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - 🔧 [Custom Role Definitions](examples/custom-roles/)
 - 📊 [Monitoring Configurations](examples/monitoring/)
 - 🛡️ [Security Hardening](examples/security/)
+
+### **Template Components**
+- 📋 [azurefireflydeploy.json](azurefireflydeploy.json) - Main onboarding template
+- 📋 [azurefireflydeploy-managementgroups.json](azurefireflydeploy-managementgroups.json) - Management group deployment
+- 🗑️ [azurefirelfyoffboard.json](azurefirelfyoffboard.json) - Offboarding template
+- 🎨 [CreateUIDefinition.json](CreateUIDefinition.json) - UI for single/multi-subscription onboarding
+- 🎨 [CreateUIDefinition-managementgroups.json](CreateUIDefinition-managementgroups.json) - UI for management group deployment
+- 🎨 [CreateUIDefinition-offboard.json](CreateUIDefinition-offboard.json) - UI for offboarding
 
 ## 📄 License
 
