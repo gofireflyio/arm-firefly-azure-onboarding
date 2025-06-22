@@ -34,6 +34,11 @@
       "type": "string",
       "metadata": { "description": "Resource group name where deployment scripts will be created" }
     },
+    "createResourceGroup": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": { "description": "Whether to create a new resource group or use an existing one" }
+    },
     "tenantId": {
       "type": "string",
       "defaultValue": "",
@@ -140,6 +145,16 @@
   },
   "resources": [
     {
+      "condition": "[parameters('createResourceGroup')]",
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[parameters('resourceGroupName')]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('mergedTags')]",
+      "properties": {}
+    },
+    {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly reader mg', parameters('servicePrincipalObjectId'))]",
@@ -200,6 +215,7 @@
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[parameters('resourceGroupName')]",
+      "dependsOn": "[if(parameters('createResourceGroup'), array(parameters('resourceGroupName')), array())]",
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -687,6 +703,7 @@
         "managementGroupId": "[parameters('managementGroupId')]",
         "subscriptionIdForDeployment": "[parameters('subscriptionIdForDeployment')]",
         "resourceGroupName": "[parameters('resourceGroupName')]",
+        "resourceGroupCreated": "[parameters('createResourceGroup')]",
         "deploymentName": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
         "status": "Deployed"
       }

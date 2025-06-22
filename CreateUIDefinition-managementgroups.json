@@ -49,6 +49,40 @@
         "visible": true
       },
       {
+        "name": "resourceGroupOption",
+        "type": "Microsoft.Common.OptionsGroup",
+        "label": "Resource Group",
+        "defaultValue": "Create new",
+        "toolTip": "Choose whether to create a new resource group or use an existing one",
+        "constraints": {
+          "allowedValues": [
+            {
+              "label": "Create new",
+              "value": "new"
+            },
+            {
+              "label": "Use existing",
+              "value": "existing"
+            }
+          ],
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "resourceGroupName",
+        "type": "Microsoft.Common.TextBox",
+        "label": "New resource group name",
+        "defaultValue": "firefly-deployment-rg",
+        "toolTip": "Name for the new resource group that will contain the deployment script",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-zA-Z0-9._\\-\\(\\)]+[a-zA-Z0-9._\\-\\(\\)]$",
+          "validationMessage": "Resource group name must be between 1-90 characters and can contain alphanumeric characters, periods, underscores, hyphens, and parentheses"
+        },
+        "visible": "[equals(basics('resourceGroupOption'), 'new')]"
+      },
+      {
         "name": "armrg",
         "type": "Microsoft.Solutions.ArmApiControl",
         "request": {
@@ -59,18 +93,17 @@
       {
         "name": "resourceGroupForDeployment",
         "type": "Microsoft.Common.DropDown",
-        "label": "Resource Group",
-        "toolTip": "Resource Group to run the deployment on",
-        "filterPlaceholder": "Select resourceGroup to run the deployment script on",
+        "label": "Existing Resource Group",
+        "toolTip": "Select an existing resource group to run the deployment script in",
+        "filterPlaceholder": "Select existing resource group",
         "filter": true,
         "multiselect": false,
         "selectAll": false,
-        "defaultValue": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
         "constraints": {
           "allowedValues": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
           "required": true
         },
-        "visible": true
+        "visible": "[equals(basics('resourceGroupOption'), 'existing')]"
       }
     ],
     "steps": [
@@ -258,7 +291,8 @@
     "outputs": {
       "location": "[location()]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
-      "resourceGroupName": "[basics('resourceGroupForDeployment')]",
+      "resourceGroupName": "[if(equals(basics('resourceGroupOption'), 'new'), basics('resourceGroupName'), basics('resourceGroupForDeployment'))]",
+      "createResourceGroup": "[equals(basics('resourceGroupOption'), 'new')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
