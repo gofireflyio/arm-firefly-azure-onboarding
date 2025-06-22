@@ -57,36 +57,33 @@
         }
       },
       {
-        "name": "createResourceGroup",
-        "type": "Microsoft.Common.CheckBox",
-        "label": "Create new resource group",
-        "defaultValue": true,
-        "toolTip": "Check to create a new resource group, uncheck to select an existing one",
+        "name": "resourceGroupOption",
+        "type": "Microsoft.Common.OptionsGroup",
+        "label": "Resource Group",
+        "toolTip": "Choose whether to create a new resource group or use an existing one for deployment resources",
+        "defaultValue": "Create new",
         "constraints": {
-          "required": false
+          "allowedValues": [
+            {
+              "label": "Create new",
+              "value": "new"
+            },
+            {
+              "label": "Use existing",
+              "value": "existing"
+            }
+          ],
+          "required": true
         },
         "visible": true
       },
       {
-        "name": "resourceGroupPrefix",
-        "type": "Microsoft.Common.TextBox",
-        "label": "Resource Group Prefix",
-        "defaultValue": "firefly",
-        "toolTip": "Prefix for the auto-generated resource group name. Full name will be: prefix-mg-{unique-id}",
-        "constraints": {
-          "required": true,
-          "regex": "^[a-zA-Z0-9._\\-]+$",
-          "validationMessage": "Resource group prefix must contain only alphanumeric characters, periods, underscores, hyphens, and parentheses"
-        },
-        "visible": "[basics('createResourceGroup')]"
-      },
-      {
         "name": "resourceGroupInfo",
         "type": "Microsoft.Common.InfoBox",
-        "visible": "[basics('createResourceGroup')]",
+        "visible": "[equals(basics('resourceGroupOption'), 'new')]",
         "options": {
           "icon": "Info",
-          "text": "[concat('A new resource group will be created with the name: ', basics('resourceGroupPrefix'), '-mg-', uniqueString(basics('subscriptionForDeployment'), managementGroup().name))]"
+          "text": "A new resource group will be created with the name 'firefly-monitoring-{subscription-id}'. This resource group will contain the deployment scripts and any event-driven monitoring resources if enabled."
         }
       },
       {
@@ -94,16 +91,16 @@
         "type": "Microsoft.Common.DropDown",
         "label": "Existing Resource Group",
         "toolTip": "Select an existing resource group to run the deployment on",
-        "filterPlaceholder": "Select existing resource group",
+        "filterPlaceholder": "Select resourceGroup to run the deployment script on",
         "filter": true,
         "multiselect": false,
         "selectAll": false,
         "defaultValue": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
         "constraints": {
           "allowedValues": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
-          "required": "[not(basics('createResourceGroup'))]"
+          "required": "[equals(basics('resourceGroupOption'), 'existing')]"
         },
-        "visible": "[not(basics('createResourceGroup'))]"
+        "visible": "[equals(basics('resourceGroupOption'), 'existing')]"
       }
     ],
     "steps": [
@@ -291,9 +288,8 @@
     "outputs": {
       "location": "[location()]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
-      "createResourceGroup": "[basics('createResourceGroup')]",
-      "resourceGroupName": "[if(basics('createResourceGroup'), concat(basics('resourceGroupPrefix'), '-mg-', uniqueString(basics('subscriptionForDeployment'), managementGroup().name)), basics('resourceGroupForDeployment'))]",
-      "prefix": "[if(basics('createResourceGroup'), basics('resourceGroupPrefix'), '')]",
+      "resourceGroupName": "[if(equals(basics('resourceGroupOption'), 'existing'), basics('resourceGroupForDeployment'), concat('firefly-monitoring-', basics('subscriptionForDeployment')))]",
+      "createResourceGroup": "[equals(basics('resourceGroupOption'), 'new')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
