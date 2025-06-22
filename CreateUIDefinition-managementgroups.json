@@ -49,40 +49,6 @@
         "visible": true
       },
       {
-        "name": "resourceGroupOption",
-        "type": "Microsoft.Common.OptionsGroup",
-        "label": "Resource Group",
-        "defaultValue": "Create new",
-        "toolTip": "Choose whether to create a new resource group or use an existing one",
-        "constraints": {
-          "allowedValues": [
-            {
-              "label": "Create new",
-              "value": "new"
-            },
-            {
-              "label": "Use existing",
-              "value": "existing"
-            }
-          ],
-          "required": true
-        },
-        "visible": true
-      },
-      {
-        "name": "resourceGroupName",
-        "type": "Microsoft.Common.TextBox",
-        "label": "New resource group name",
-        "defaultValue": "firefly-deployment-rg",
-        "toolTip": "Name for the new resource group that will contain the deployment script",
-        "constraints": {
-          "required": true,
-          "regex": "^[a-zA-Z0-9._\\-\\(\\)]+[a-zA-Z0-9._\\-\\(\\)]$",
-          "validationMessage": "Resource group name must be between 1-90 characters and can contain alphanumeric characters, periods, underscores, hyphens, and parentheses"
-        },
-        "visible": "[equals(basics('resourceGroupOption'), 'new')]"
-      },
-      {
         "name": "armrg",
         "type": "Microsoft.Solutions.ArmApiControl",
         "request": {
@@ -91,19 +57,53 @@
         }
       },
       {
+        "name": "createResourceGroup",
+        "type": "Microsoft.Common.CheckBox",
+        "label": "Create new resource group",
+        "defaultValue": true,
+        "toolTip": "Check to create a new resource group, uncheck to select an existing one",
+        "constraints": {
+          "required": false
+        },
+        "visible": true
+      },
+      {
+        "name": "resourceGroupPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Resource Group Prefix",
+        "defaultValue": "firefly",
+        "toolTip": "Prefix for the auto-generated resource group name. Full name will be: prefix-mg-{unique-id}",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-zA-Z0-9._\\-]+$",
+          "validationMessage": "Resource group prefix must contain only alphanumeric characters, periods, underscores, hyphens, and parentheses"
+        },
+        "visible": "[basics('createResourceGroup')]"
+      },
+      {
+        "name": "resourceGroupInfo",
+        "type": "Microsoft.Common.InfoBox",
+        "visible": "[basics('createResourceGroup')]",
+        "options": {
+          "icon": "Info",
+          "text": "[concat('A new resource group will be created with the name: ', basics('resourceGroupPrefix'), '-mg-', uniqueString(basics('subscriptionForDeployment'), managementGroup().name))]"
+        }
+      },
+      {
         "name": "resourceGroupForDeployment",
         "type": "Microsoft.Common.DropDown",
         "label": "Existing Resource Group",
-        "toolTip": "Select an existing resource group to run the deployment script in",
+        "toolTip": "Select an existing resource group to run the deployment on",
         "filterPlaceholder": "Select existing resource group",
         "filter": true,
         "multiselect": false,
         "selectAll": false,
+        "defaultValue": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
         "constraints": {
           "allowedValues": "[map(basics('armrg').value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
-          "required": true
+          "required": "[not(basics('createResourceGroup'))]"
         },
-        "visible": "[equals(basics('resourceGroupOption'), 'existing')]"
+        "visible": "[not(basics('createResourceGroup'))]"
       }
     ],
     "steps": [
@@ -291,8 +291,9 @@
     "outputs": {
       "location": "[location()]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
-      "resourceGroupName": "[if(equals(basics('resourceGroupOption'), 'new'), basics('resourceGroupName'), basics('resourceGroupForDeployment'))]",
-      "createResourceGroup": "[equals(basics('resourceGroupOption'), 'new')]",
+      "createResourceGroup": "[basics('createResourceGroup')]",
+      "resourceGroupName": "[if(basics('createResourceGroup'), concat(basics('resourceGroupPrefix'), '-mg-', uniqueString(basics('subscriptionForDeployment'), managementGroup().name)), basics('resourceGroupForDeployment'))]",
+      "prefix": "[if(basics('createResourceGroup'), basics('resourceGroupPrefix'), '')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",

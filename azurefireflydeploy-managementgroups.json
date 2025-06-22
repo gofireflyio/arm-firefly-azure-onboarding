@@ -30,14 +30,15 @@
       "type": "string",
       "metadata": { "description": "Subscription ID where deployment resources will be created" }
     },
-    "resourceGroupName": {
-      "type": "string",
-      "metadata": { "description": "Resource group name where deployment scripts will be created" }
-    },
     "createResourceGroup": {
       "type": "bool",
       "defaultValue": true,
-      "metadata": { "description": "Whether to create a new resource group or use an existing one" }
+      "metadata": { "description": "Create a new resource group or use existing one" }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "[concat('firefly-mg-', parameters('prefix'), uniqueString(parameters('subscriptionIdForDeployment'), parameters('managementGroupId')))]",
+      "metadata": { "description": "Resource group name where deployment scripts will be created" }
     },
     "tenantId": {
       "type": "string",
@@ -83,11 +84,7 @@
       "defaultValue": "",
       "metadata": { "description": "Prefix for resource naming" }
     },
-    "suffix": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Suffix for resource naming" }
-    },
+
     "enforceStorageNetworkRules": {
       "type": "bool",
       "defaultValue": false,
@@ -141,19 +138,9 @@
     "tagsArray": "[parameters('tags')]",
     "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
     "mergedTags": "[union(createObject('firefly', 'true'), variables('customTagsObject'))]",
-    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'))]"
   },
   "resources": [
-    {
-      "condition": "[parameters('createResourceGroup')]",
-      "type": "Microsoft.Resources/resourceGroups",
-      "apiVersion": "2021-04-01",
-      "name": "[parameters('resourceGroupName')]",
-      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
-      "location": "[parameters('location')]",
-      "tags": "[variables('mergedTags')]",
-      "properties": {}
-    },
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
@@ -210,12 +197,41 @@
       }
     },
     {
+      "condition": "[parameters('createResourceGroup')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-rg-create-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('mergedTags')]",
+              "properties": {}
+            }
+          ]
+        }
+      }
+    },
+    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[parameters('resourceGroupName')]",
-      "dependsOn": "[if(parameters('createResourceGroup'), array(parameters('resourceGroupName')), array())]",
+      "dependsOn": [
+        "[if(parameters('createResourceGroup'), concat('firefly-rg-create-', parameters('newguid')), '')]"
+      ],
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -268,9 +284,7 @@
           "prefix": {
               "value": "[parameters('prefix')]"
           },
-          "suffix": {
-              "value": "[parameters('suffix')]"
-          },
+
           "enforceStorageNetworkRules": {
               "value": "[parameters('enforceStorageNetworkRules')]"
           },
@@ -346,9 +360,7 @@
               "prefix": {
                   "type": "string"
               },
-              "suffix": {
-                  "type": "string"
-              },
+
               "enforceStorageNetworkRules": {
                   "type": "bool"
               },
@@ -376,7 +388,7 @@
           },
           "variables": {
             "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
-            "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+            "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'))]"
           },
           "resources": [
             {
@@ -703,7 +715,6 @@
         "managementGroupId": "[parameters('managementGroupId')]",
         "subscriptionIdForDeployment": "[parameters('subscriptionIdForDeployment')]",
         "resourceGroupName": "[parameters('resourceGroupName')]",
-        "resourceGroupCreated": "[parameters('createResourceGroup')]",
         "deploymentName": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
         "status": "Deployed"
       }
