@@ -116,7 +116,6 @@
               "type": "object"
             }
           },
-          "variables": {},
           "resources": [
             {
               "type": "Microsoft.Resources/resourceGroups",
@@ -126,8 +125,7 @@
               "tags": "[parameters('tags')]",
               "properties": {}
             }
-          ],
-          "outputs": {}
+          ]
         },
         "parameters": {
           "resourceGroupName": {
