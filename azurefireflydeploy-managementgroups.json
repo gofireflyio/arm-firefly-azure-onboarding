@@ -63,26 +63,7 @@
       "defaultValue": "https://azure-events.firefly.ai",
       "metadata": { "description": "Firefly webhook URL for event notifications" }
     },
-    "storageAccountName": {
-      "type": "string",
-      "defaultValue": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment'), parameters('resourceGroupName')))]",
-      "metadata": { "description": "Name for the storage account (must be globally unique)" }
-    },
-    "eventGridTopicName": {
-      "type": "string",
-      "defaultValue": "[concat('firefly-events-', parameters('resourceGroupName'), '-', parameters('newguid'))]",
-      "metadata": { "description": "Name for the Event Grid system topic" }
-    },
-    "customRoleName": {
-      "type": "string",
-      "defaultValue": "[concat('Firefly-', uniqueString(parameters('subscriptionIdForDeployment')))]",
-      "metadata": { "description": "Name for the custom Firefly role definition" }
-    },
-    "prefix": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Prefix for resource naming" }
-    },
+
 
     "enforceStorageNetworkRules": {
       "type": "bool",
@@ -258,153 +239,55 @@
             "scope": "inner"
         },
         "parameters": {
-          "managementGroupId": {
-              "value": "[parameters('managementGroupId')]"
-          },
-          "location": {
-              "value": "[parameters('location')]"
-          },
-          "servicePrincipalClientId": {
-              "value": "[parameters('servicePrincipalClientId')]"
-          },
-          "servicePrincipalClientSecret": {
-              "value": "[parameters('servicePrincipalClientSecret')]"
-          },
-          "servicePrincipalObjectId": {
-              "value": "[parameters('servicePrincipalObjectId')]"
-          },
-          "fireflyAccessKey": {
-              "value": "[parameters('fireflyAccessKey')]"
-          },
-          "fireflySecretKey": {
-              "value": "[parameters('fireflySecretKey')]"
-          },
-
-          "subscriptionIdForDeployment": {
-              "value": "[parameters('subscriptionIdForDeployment')]"
-          },
-          "eventDrivenEnabled": {
-              "value": "[parameters('eventDrivenEnabled')]"
-          },
-          "fireflyWebhookUrl": {
-              "value": "[parameters('fireflyWebhookUrl')]"
-          },
-          "uniqueStorageAccountName": {
-              "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]"
-          },
-          "uniqueEventGridTopicName": {
-              "value": "[concat('firefly-events-', substring(parameters('subscriptionIdForDeployment'), 0, 8), '-', parameters('newguid'))]"
-          },
-          "resourceGroupName": {
-              "value": "[parameters('resourceGroupName')]"
-          },
-          "uniqueCustomRoleName": {
-              "value": "[concat('Firefly-', uniqueString(parameters('subscriptionIdForDeployment')))]"
-          },
-          "enforceStorageNetworkRules": {
-              "value": "[parameters('enforceStorageNetworkRules')]"
-          },
-          "fireflyEips": {
-              "value": "[parameters('fireflyEips')]"
-          },
-          "mergedTags": {
-              "value": "[variables('mergedTags')]"
-          },
-          "createResourceProviderRegistration": {
-              "value": "[parameters('createResourceProviderRegistration')]"
-          },
-          "isProd": {
-              "value": "[parameters('isProd')]"
-          },
-          "autoDiscoverEnabled": {
-              "value": "[parameters('autoDiscoverEnabled')]"
-          },
-          "directoryDomain": {
-              "value": "[parameters('directoryDomain')]"
-          },
-          "newguid": {
-              "value": "[parameters('newguid')]"
-          },
-          "createResourceGroup": {
-              "value": "[parameters('createResourceGroup')]"
-          }
+          "mergedTags": { "value": "[variables('mergedTags')]" },
+          "uniqueStorageAccountName": { "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]" },
+          "uniqueEventGridTopicName": { "value": "[concat('firefly-events-', substring(parameters('subscriptionIdForDeployment'), 0, 8), '-', parameters('newguid'))]" },
+          "uniqueCustomRoleName": { "value": "[concat('Firefly-', uniqueString(parameters('subscriptionIdForDeployment')))]" },
+          "managementGroupId": { "value": "[parameters('managementGroupId')]" },
+          "location": { "value": "[parameters('location')]" },
+          "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
+          "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
+          "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
+          "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
+          "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
+          "subscriptionIdForDeployment": { "value": "[parameters('subscriptionIdForDeployment')]" },
+          "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
+          "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
+          "resourceGroupName": { "value": "[parameters('resourceGroupName')]" },
+          "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
+          "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+          "isProd": { "value": "[parameters('isProd')]" },
+          "directoryDomain": { "value": "[parameters('directoryDomain')]" },
+          "newguid": { "value": "[parameters('newguid')]" }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
           "parameters": {
-              "managementGroupId": {
-                  "type": "string"
-              },
-              "location": {
-                  "type": "string"
-              },
-              "servicePrincipalClientId": {
-                  "type": "string"
-              },
-              "servicePrincipalClientSecret": {
-                  "type": "securestring"
-              },
-              "servicePrincipalObjectId": {
-                  "type": "string"
-              },
-              "fireflyAccessKey": {
-                  "type": "securestring"
-              },
-              "fireflySecretKey": {
-                  "type": "securestring"
-              },
-
-              "subscriptionIdForDeployment": {
-                  "type": "string"
-              },
-              "eventDrivenEnabled": {
-                  "type": "bool"
-              },
-              "fireflyWebhookUrl": {
-                  "type": "string"
-              },
-              "uniqueStorageAccountName": {
-                  "type": "string"
-              },
-              "uniqueEventGridTopicName": {
-                  "type": "string"
-              },
-              "resourceGroupName": {
-                  "type": "string"
-              },
-              "uniqueCustomRoleName": {
-                  "type": "string"
-              },
-              "enforceStorageNetworkRules": {
-                  "type": "bool"
-              },
-              "fireflyEips": {
-                  "type": "array"
-              },
-              "mergedTags": {
-                  "type": "object"
-              },
-              "createResourceProviderRegistration": {
-                  "type": "bool"
-              },
-              "isProd": {
-                  "type": "bool"
-              },
-              "autoDiscoverEnabled": {
-                  "type": "bool"
-              },
-              "directoryDomain": {
-                  "type": "string"
-              },
-              "newguid": {
-                  "type": "string"
-              },
-              "createResourceGroup": {
-                  "type": "bool"
-              }
+            "mergedTags": { "type": "object" },
+            "uniqueStorageAccountName": { "type": "string" },
+            "uniqueEventGridTopicName": { "type": "string" },
+            "uniqueCustomRoleName": { "type": "string" },
+            "managementGroupId": { "type": "string" },
+            "location": { "type": "string" },
+            "servicePrincipalClientId": { "type": "string" },
+            "servicePrincipalClientSecret": { "type": "securestring" },
+            "servicePrincipalObjectId": { "type": "string" },
+            "fireflyAccessKey": { "type": "securestring" },
+            "fireflySecretKey": { "type": "securestring" },
+            "subscriptionIdForDeployment": { "type": "string" },
+            "eventDrivenEnabled": { "type": "bool" },
+            "fireflyWebhookUrl": { "type": "string" },
+            "resourceGroupName": { "type": "string" },
+            "enforceStorageNetworkRules": { "type": "bool" },
+            "fireflyEips": { "type": "array" },
+            "isProd": { "type": "bool" },
+            "directoryDomain": { "type": "string" },
+            "newguid": { "type": "string" }
           },
-          "variables": {},
+          "variables": {
+            "resourceGroupName": "[parameters('resourceGroupName')]"
+          },
           "resources": [
             {
               "type": "Microsoft.Resources/deployments",
@@ -510,7 +393,7 @@
                         "principalId": "[parameters('servicePrincipalObjectId')]",
                         "principalType": "ServicePrincipal",
                         "conditionVersion": "2.0",
-                        "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state'))"
+                        "condition": "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} AND NOT SubOperationMatches{'Blob.List'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*state') OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike '*.tfstateenv:*'))"
                       }
                     }
                   ],
@@ -576,7 +459,7 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('mergedTags')]",
               "properties": {
-                "source": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
+                "source": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
                 "topicType": "microsoft.storage.storageaccounts"
               },
               "dependsOn": [
@@ -617,14 +500,14 @@
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', resourceGroup().id, parameters('newguid'))]",
-              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
               "properties": {
                 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
                 "principalType": "ServicePrincipal"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]"
               ]
             },
             {
@@ -645,14 +528,14 @@
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', resourceGroup().id, parameters('newguid'))]",
-              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
               "properties": {
                 "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReader', subscription().subscriptionId))]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
                 "principalType": "ServicePrincipal"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                 "[concat('firefly-custom-roles-', parameters('newguid'))]"
               ]
             },
@@ -664,7 +547,7 @@
               "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
               "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                 "[resourceId('Microsoft.Resources/deploymentScripts', concat('firefly-mg-int-', parameters('newguid')))]"
               ],
               "properties": {
@@ -678,7 +561,7 @@
                   { "name": "CLIENT_ID",             "value": "[parameters('servicePrincipalClientId')]" },
                   { "name": "CLIENT_SECRET",         "secureValue": "[parameters('servicePrincipalClientSecret')]" },
                   { "name": "TENANT_ID",             "value": "[subscription().tenantId]"},
-                  { "name": "STORAGE_ACCOUNT_ID",    "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]" },
+                  { "name": "STORAGE_ACCOUNT_ID",    "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]" },
                   { "name": "RESOURCE_GROUP_NAME",   "value": "[parameters('resourceGroupName')]" },
                   { "name": "SUBSCRIPTION_ID_FOR_DEPLOYMENT", "value": "[parameters('subscriptionIdForDeployment')]" },
                   { "name": "NEWGUID",               "value": "[parameters('newguid')]" }
@@ -695,12 +578,12 @@
             "storageAccountId": {
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName')), '')]"
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName')), '')]"
             },
             "eventGridTopicId": {
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
-              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('eventGridTopicName')), '')]"
+              "value": "[if(parameters('eventDrivenEnabled'), resourceId('Microsoft.EventGrid/systemTopics', parameters('uniqueEventGridTopicName')), '')]"
             }
           }
         }
@@ -733,12 +616,12 @@
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), variables('computedStorageAccountName'), '')]"
+      "value":"[if(parameters('eventDrivenEnabled'), concat('firefly', uniqueString(parameters('subscriptionIdForDeployment'))), '')]"
     },
     "eventGridTopicName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
-      "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+      "value":"[if(parameters('eventDrivenEnabled'), concat('firefly-events-', substring(parameters('subscriptionIdForDeployment'), 0, 8), '-', parameters('newguid')), '')]"
     },
     "taggingDebug": {
       "type": "object",
