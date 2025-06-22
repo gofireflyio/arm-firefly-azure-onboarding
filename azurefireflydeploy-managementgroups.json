@@ -600,7 +600,7 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-diag-settings-script-', parameters('newguid'))]",
+              "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
               "location": "eastus",
               "kind": "AzurePowerShell",
               "properties": {
