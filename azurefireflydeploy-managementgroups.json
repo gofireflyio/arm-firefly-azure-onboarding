@@ -50,7 +50,7 @@
 
     "eventDrivenEnabled": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": { "description": "Enable event-driven monitoring for subscriptions" }
     },
     "fireflyWebhookUrl": {
@@ -100,9 +100,9 @@
       "metadata": { "description": "Firefly IP addresses for storage account network rules" }
     },
     "tags": {
-      "type": "object",
-      "defaultValue": {},
-      "metadata": { "description": "Tags to apply to created resources" }
+      "type": "array",
+      "defaultValue": [],
+      "metadata": { "description": "Tags to apply to created resources as array from EditableGrid" }
     },
     "createResourceProviderRegistration": {
       "type": "bool",
@@ -133,7 +133,9 @@
     }
   },
   "variables": {
-    "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
+    "tagsArray": "[parameters('tags')]",
+    "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
+    "mergedTags": "[union(createObject('firefly', 'true'), variables('customTagsObject'))]",
     "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
   },
   "resources": [
@@ -670,9 +672,25 @@
     }
   ],
   "outputs": {
-    "subscriptionIdForDeployment": {"type":"string","value":"[parameters('subscriptionIdForDeployment')]"},
-    "managementGroupId": {"type":"string","value":"[parameters('managementGroupId')]"},
-    "eventDrivenEnabled": {"type":"bool","value":"[parameters('eventDrivenEnabled')]"},
+    "deploymentSummary": {
+      "type": "object",
+      "value": {
+        "managementGroupId": "[parameters('managementGroupId')]",
+        "subscriptionIdForDeployment": "[parameters('subscriptionIdForDeployment')]",
+        "eventDrivenEnabled": "[parameters('eventDrivenEnabled')]",
+        "deploymentMethod": "Management-Group"
+      }
+    },
+    "managementGroupDetails": {
+      "type": "object",
+      "value": {
+        "managementGroupId": "[parameters('managementGroupId')]",
+        "subscriptionIdForDeployment": "[parameters('subscriptionIdForDeployment')]",
+        "resourceGroupName": "[parameters('resourceGroupName')]",
+        "deploymentName": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
+        "status": "Deployed"
+      }
+    },
     "storageAccountName": {
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
@@ -682,6 +700,16 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type":"string",
       "value":"[if(parameters('eventDrivenEnabled'), parameters('eventGridTopicName'), '')]"
+    },
+    "taggingDebug": {
+      "type": "object",
+      "value": {
+        "inputTagsArray": "[variables('tagsArray')]",
+        "arrayLength": "[length(variables('tagsArray'))]",
+        "customTagsObject": "[variables('customTagsObject')]",
+        "mergedTags": "[variables('mergedTags')]",
+        "finalTagCount": "[length(variables('mergedTags'))]"
+      }
     }
   }
 }

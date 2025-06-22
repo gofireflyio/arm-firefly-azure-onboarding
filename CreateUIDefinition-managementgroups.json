@@ -80,14 +80,90 @@
         "label": "Integration Configuration",
         "elements": [
           {
-            "name": "isProd",
+            "name": "eventDrivenEnabled",
             "type": "Microsoft.Common.CheckBox",
-            "label": "Production Environment",
-            "toolTip": "Check if this is a production environment. When enabled with event-driven monitoring, this will create storage accounts, event grid topics, and diagnostic settings for real-time monitoring.",
+            "label": "Enable Event-Driven Monitoring",
+            "toolTip": "Enable event-driven monitoring for all subscriptions under the management group. When enabled, this will create a shared storage account, event grid topic, and diagnostic settings for real-time monitoring.",
             "constraints": {
               "required": false
             },
             "visible": true
+          },
+          {
+            "name": "isProd",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Production Environment",
+            "toolTip": "Check if this is a production environment.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          },
+          {
+            "name": "enforceStorageNetworkRules",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Enforce Storage Network Rules",
+            "toolTip": "Restrict storage account access to Firefly IP addresses only. When enabled, the storage account will only allow access from predefined Firefly IP addresses.",
+            "constraints": {
+              "required": false
+            },
+            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
+          },
+          {
+            "name": "tags",
+            "type": "Microsoft.Common.EditableGrid",
+            "ariaLabel": "Custom tags for resources",
+            "label": "Tags",
+            "toolTip": "Add custom tags for your resources. A 'firefly: true' tag will be automatically added.",
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0,
+                  "max": 10
+                }
+              },
+              "columns": [
+                {
+                  "id": "tagName",
+                  "header": "Tag Name",
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Environment",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_-]+$",
+                      "validationMessage": "Tag name must contain only letters, numbers, underscores, and hyphens"
+                    }
+                  }
+                },
+                {
+                  "id": "tagValue",
+                  "header": "Tag Value", 
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "placeholder": "Production",
+                    "constraints": {
+                      "required": true,
+                      "regex": "^[a-zA-Z0-9_\\s-]+$",
+                      "validationMessage": "Tag value must contain only letters, numbers, spaces, underscores, and hyphens"
+                    }
+                  }
+                }
+              ]
+            },
+            "visible": true
+          },
+          {
+            "name": "managementGroupInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Management group deployment will automatically discover and integrate all subscriptions within the selected management group scope. This includes existing subscriptions and any subscriptions created in the future. The service principal will be granted the same permissions across all discovered subscriptions."
+            }
           }
         ]
       },
@@ -106,7 +182,7 @@
                 "visible": true,
                 "options": {
                   "icon": "Info",
-                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader"
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader\n• Monitoring Reader"
                 }
               },
               {
@@ -121,7 +197,7 @@
                   "servicePrincipalId": "Service Principal for Firefly integration"
                 },
                 "defaultValue": {
-                  "principalId": "",
+                  "principalId": "<default guid>",
                   "name": "(New) default App Id"
                 },
                 "constraints": {
@@ -188,7 +264,10 @@
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
-      "isProd": "[steps('integrationConfig').isProd]"
+      "isProd": "[steps('integrationConfig').isProd]",
+      "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
+      "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
+      "tags": "[steps('integrationConfig').tags]"
     }
   }
 } 
