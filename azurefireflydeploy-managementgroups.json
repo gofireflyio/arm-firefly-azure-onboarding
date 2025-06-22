@@ -214,8 +214,10 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('fireflyIntDeploy-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
-      "resourceGroup": "[parameters('resourceGroupName')]",
-      "dependsOn": "[if(parameters('createResourceGroup'), array(parameters('resourceGroupName')), array())]",
+            "resourceGroup": "[parameters('resourceGroupName')]",
+      "dependsOn": [
+        "[parameters('resourceGroupName')]"
+      ],
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -278,7 +280,7 @@
               "value": "[parameters('fireflyEips')]"
           },
           "tags": {
-              "value": "[parameters('tags')]"
+              "value": "[variables('customTagsObject')]"
           },
           "createResourceProviderRegistration": {
               "value": "[parameters('createResourceProviderRegistration')]"
@@ -294,6 +296,9 @@
           },
           "newguid": {
               "value": "[parameters('newguid')]"
+          },
+          "createResourceGroup": {
+              "value": "[parameters('createResourceGroup')]"
           }
         },
         "template": {
@@ -372,6 +377,9 @@
               },
               "newguid": {
                   "type": "string"
+              },
+              "createResourceGroup": {
+                  "type": "bool"
               }
           },
           "variables": {
