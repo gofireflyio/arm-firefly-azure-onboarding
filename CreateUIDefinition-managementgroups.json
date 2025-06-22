@@ -11,7 +11,7 @@
         "name": "location",
         "type": "Microsoft.Common.TextBox",
         "label": "Location",
-        "defaultValue": "westus2",
+        "defaultValue": "global",
         "toolTip": "Resources location",
         "visible": false
       },
@@ -31,22 +31,6 @@
           "method": "POST",
           "path": "/providers/Microsoft.Management/getEntities?api-version=2020-05-01&$skiptoken="
         }
-      },
-      {
-        "name": "managementGroupId",
-        "type": "Microsoft.Common.DropDown",
-        "label": "Management Group",
-        "toolTip": "Select the management group to monitor. All subscriptions under this management group will be automatically discovered and monitored by Firefly.",
-        "filterPlaceholder": "Select management group scope",
-        "filter": true,
-        "multiselect": false,
-        "selectAll": false,
-        "defaultValue": "[map(filter(steps('basics').armio.value,(i) => equals(i.type,'Microsoft.Management/managementGroups')),(item) => item.properties.displayName)]",
-        "constraints": {
-          "allowedValues": "[map(filter(steps('basics').armio.value,(i)=> equals(i.type, 'Microsoft.Management/managementGroups')), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
-          "required": true
-        },
-        "visible": true
       },
       {
         "name": "subscriptionForDeployment",
@@ -99,7 +83,7 @@
         "visible": "[equals(basics('resourceGroupOption'), 'new')]",
         "options": {
           "icon": "Info",
-          "text": "A new resource group will be created with the name 'firefly-monitoring-mg-{management-group-id}'. This resource group will contain the deployment scripts and any event-driven monitoring resources if enabled."
+          "text": "A new resource group will be created with the name 'firefly-monitoring-{subscription-id}'. This resource group will contain the deployment scripts and any event-driven monitoring resources if enabled."
         }
       },
       {
@@ -152,32 +136,6 @@
             "toolTip": "Restrict storage account access to Firefly IP addresses only. When enabled, the storage account will only allow access from predefined Firefly IP addresses.",
             "constraints": {
               "required": false
-            },
-            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
-          },
-          {
-            "name": "directoryDomain",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Directory Domain",
-            "defaultValue": "firefly.ai",
-            "toolTip": "Directory domain for Firefly integration. Leave default unless instructed otherwise by Firefly support.",
-            "constraints": {
-              "required": true,
-              "regex": "^[a-zA-Z0-9._-]+$",
-              "validationMessage": "Domain must be a valid domain name"
-            },
-            "visible": true
-          },
-          {
-            "name": "fireflyWebhookUrl",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Firefly Webhook URL",
-            "defaultValue": "https://azure-events.firefly.ai",
-            "toolTip": "Firefly webhook URL for event notifications. Leave default unless instructed otherwise by Firefly support.",
-            "constraints": {
-              "required": "[steps('integrationConfig').eventDrivenEnabled]",
-              "regex": "^https?://.*$",
-              "validationMessage": "Must be a valid HTTPS URL"
             },
             "visible": "[steps('integrationConfig').eventDrivenEnabled]"
           },
@@ -254,7 +212,7 @@
                 "visible": true,
                 "options": {
                   "icon": "Info",
-                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader\n• Monitoring Reader\n\nAdditionally, custom roles will be created in the deployment subscription for accessing storage accounts and other Azure services."
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'Firefly-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader\n• Monitoring Reader"
                 }
               },
               {
@@ -328,9 +286,10 @@
       }
     ],
     "outputs": {
-      "location": "[basics('location')]",
-      "managementGroupId": "[basics('managementGroupId')]",
+      "location": "[location()]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
+      "resourceGroupName": "[if(equals(basics('resourceGroupOption'), 'existing'), basics('resourceGroupForDeployment'), concat('firefly-monitoring-', basics('subscriptionForDeployment')))]",
+      "createResourceGroup": "[equals(basics('resourceGroupOption'), 'new')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
@@ -339,8 +298,6 @@
       "isProd": "[steps('integrationConfig').isProd]",
       "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "fireflyWebhookUrl": "[steps('integrationConfig').fireflyWebhookUrl]",
-      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
       "tags": "[steps('integrationConfig').tags]"
     }
   }
