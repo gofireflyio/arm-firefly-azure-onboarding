@@ -566,34 +566,24 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
-      "location": "[parameters('location')]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
         "[concat('firefly-resources-', parameters('newguid'))]",
         "[concat('firefly-integration-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "parameters": {
-          "storageAccountId": {
-            "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', concat('firefly', uniqueString(parameters('subscriptionIdForDeployment'))))]"
-          },
-          "managementGroupId": { "value": "[parameters('managementGroupId')]" },
-          "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
-          "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
-          "newguid": { "value": "[parameters('newguid')]" }
-        },
         "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
           "parameters": {
             "storageAccountId": { "type": "string" },
             "managementGroupId": { "type": "string" },
             "servicePrincipalClientId": { "type": "string" },
             "servicePrincipalClientSecret": { "type": "securestring" },
-            "newguid": { "type": "string" }
+            "newguid": { "type": "string" },
+            "location": { "type": "string" }
           },
           "variables": {},
           "resources": [
@@ -601,7 +591,7 @@
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
-              "location": "eastus",
+              "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
               "properties": {
                 "retentionInterval": "PT1H",
@@ -622,6 +612,16 @@
             }
           ],
           "outputs": {}
+        },
+        "parameters": {
+          "storageAccountId": {
+            "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', concat('firefly', uniqueString(parameters('subscriptionIdForDeployment'))))]"
+          },
+          "managementGroupId": { "value": "[parameters('managementGroupId')]" },
+          "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
+          "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" },
+          "newguid": { "value": "[parameters('newguid')]" },
+          "location": { "value": "[parameters('location')]" }
         }
       }
     }
