@@ -264,9 +264,6 @@
               "name": "[concat('firefly-roles-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
-              "dependsOn": [
-                "[concat('firefly-resource-group-', parameters('newguid'))]"
-              ],
               "properties": {
                 "mode": "Incremental",
                 "expressionEvaluationOptions": {
@@ -431,7 +428,6 @@
               "resourceGroup": "[variables('resourceGroupName')]",
               "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
               "dependsOn": [
-                "[concat('firefly-resource-group-', parameters('newguid'))]",
                 "[concat('firefly-roles-', parameters('newguid'))]"
               ],
               "properties": {
@@ -596,7 +592,6 @@
               "resourceGroup": "[variables('resourceGroupName')]",
               "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
               "dependsOn": [
-                "[concat('firefly-resource-group-', parameters('newguid'))]",
                 "[concat('firefly-roles-', parameters('newguid'))]"
               ],
               "properties": {
