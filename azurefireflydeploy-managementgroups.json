@@ -83,11 +83,7 @@
       "defaultValue": "",
       "metadata": { "description": "Prefix for resource naming" }
     },
-    "suffix": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": { "description": "Suffix for resource naming" }
-    },
+
     "enforceStorageNetworkRules": {
       "type": "bool",
       "defaultValue": false,
@@ -141,18 +137,57 @@
     "tagsArray": "[parameters('tags')]",
     "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
     "mergedTags": "[union(createObject('firefly', 'true'), variables('customTagsObject'))]",
-    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+    "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'))]"
   },
   "resources": [
     {
       "condition": "[parameters('createResourceGroup')]",
-      "type": "Microsoft.Resources/resourceGroups",
+      "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[parameters('resourceGroupName')]",
+      "name": "[concat('firefly-resource-group-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "location": "[parameters('location')]",
-      "tags": "[variables('mergedTags')]",
-      "properties": {}
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "resourceGroupName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            }
+          ],
+          "outputs": {}
+        },
+        "parameters": {
+          "resourceGroupName": {
+            "value": "[parameters('resourceGroupName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('mergedTags')]"
+          }
+        }
+      }
     },
     {
       "type": "Microsoft.Authorization/roleAssignments",
@@ -216,7 +251,7 @@
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
             "resourceGroup": "[parameters('resourceGroupName')]",
       "dependsOn": [
-        "[parameters('resourceGroupName')]"
+        "[concat('firefly-resource-group-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -269,9 +304,6 @@
           },
           "prefix": {
               "value": "[parameters('prefix')]"
-          },
-          "suffix": {
-              "value": "[parameters('suffix')]"
           },
           "enforceStorageNetworkRules": {
               "value": "[parameters('enforceStorageNetworkRules')]"
@@ -351,9 +383,6 @@
               "prefix": {
                   "type": "string"
               },
-              "suffix": {
-                  "type": "string"
-              },
               "enforceStorageNetworkRules": {
                   "type": "bool"
               },
@@ -384,7 +413,7 @@
           },
           "variables": {
             "mergedTags": "[union(parameters('tags'), createObject('firefly', 'true'))]",
-            "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'), parameters('suffix'))]"
+            "computedStorageAccountName": "[concat(if(empty(parameters('prefix')), '', replace(parameters('prefix'), '-', '')), parameters('storageAccountName'))]"
           },
           "resources": [
             {
@@ -502,7 +531,7 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-mg-int-script-', parameters('newguid'))]",
+              "name": "[concat('firefly-mg-int-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
               "dependsOn": [
@@ -648,12 +677,12 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-diag-settings-script-', parameters('newguid'))]",
+              "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('computedStorageAccountName'))]",
-                "[resourceId('Microsoft.Resources/deploymentScripts', concat('firefly-mg-int-script-', parameters('newguid')))]"
+                "[resourceId('Microsoft.Resources/deploymentScripts', concat('firefly-mg-int-', parameters('newguid')))]"
               ],
               "properties": {
                 "retentionInterval": "PT1H",
