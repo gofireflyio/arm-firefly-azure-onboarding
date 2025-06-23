@@ -89,8 +89,12 @@
   },
   "variables": {
     "tagsArray": "[parameters('tags')]",
-    "customTagsObject": "[if(empty(variables('tagsArray')), createObject(), reduce(variables('tagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
-    "mergedTags": "[union(createObject('firefly', 'true'), variables('customTagsObject'))]",
+    "filteredTagsArray": "[filter(variables('tagsArray'), lambda('tag', and(not(empty(lambdaVariables('tag').tagName)), not(equals(trim(lambdaVariables('tag').tagName), '')))))]",
+    "customTagsObject": "[if(empty(variables('filteredTagsArray')), createObject(), reduce(variables('filteredTagsArray'), createObject(), lambda('accumulator', 'currentTag', union(lambdaVariables('accumulator'), createObject(lambdaVariables('currentTag').tagName, lambdaVariables('currentTag').tagValue)))))]",
+    "defaultTags": {
+      "firefly": "true"
+    },
+    "mergedTags": "[union(variables('defaultTags'), variables('customTagsObject'))]",
     "resourceGroupName": "[concat('firefly-monitoring-mg-', parameters('managementGroupId'))]"
   },
   "resources": [
