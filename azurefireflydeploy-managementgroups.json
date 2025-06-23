@@ -176,7 +176,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-subscription-roles-', parameters('newguid'))]",
+      "name": "[concat('firefly-roles-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "location": "[parameters('location')]",
       "dependsOn": [
@@ -296,7 +296,7 @@
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
         "[concat('firefly-resource-group-', parameters('newguid'))]",
-        "[concat('firefly-subscription-roles-', parameters('newguid'))]"
+        "[concat('firefly-roles-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -399,7 +399,7 @@
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
         "[concat('firefly-resource-group-', parameters('newguid'))]",
-        "[concat('firefly-subscription-roles-', parameters('newguid'))]"
+        "[concat('firefly-roles-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
