@@ -291,7 +291,7 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-event-resources-', parameters('newguid'))]",
+      "name": "[concat('firefly-resources-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
@@ -379,7 +379,7 @@
         },
         "parameters": {
           "storageAccountName": { "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]" },
-          "eventGridTopicName": { "value": "[concat('firefly-events-mg-', substring(parameters('managementGroupId'), 0, 8), '-', parameters('newguid'))]" },
+          "eventGridTopicName": { "value": "[concat('firefly-mg-', substring(parameters('managementGroupId'), 0, 8), '-', parameters('newguid'))]" },
           "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
           "newguid": { "value": "[parameters('newguid')]" },
           "mergedTags": { "value": "[variables('mergedTags')]" },
