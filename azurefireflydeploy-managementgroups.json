@@ -423,7 +423,7 @@
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-mg-subscription-diagnostics-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
-      "location": "[parameters('location')]",
+      "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
         "[concat('firefly-resources-', parameters('newguid'))]",
         "[concat('firefly-mg-diagnostics-', parameters('newguid'))]"
@@ -434,21 +434,23 @@
           "scope": "inner"
         },
         "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
           "parameters": {
             "managementGroupId": { "type": "string" },
             "storageAccountName": { "type": "string" },
             "resourceGroupName": { "type": "string" },
             "newguid": { "type": "string" },
-            "subscriptionIdForDeployment": { "type": "string" }
+            "subscriptionIdForDeployment": { "type": "string" },
+            "servicePrincipalClientId": { "type": "string" },
+            "servicePrincipalClientSecret": { "type": "securestring" }
           },
           "resources": [
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
               "name": "[concat('firefly-mg-diagnostics-script-', parameters('newguid'))]",
-              "location": "[deployment().location]",
+              "location": "[resourceGroup().location]",
               "kind": "AzurePowerShell",
               "properties": {
                 "retentionInterval": "PT1H",
@@ -458,9 +460,12 @@
                 "environmentVariables": [
                   { "name": "MANAGEMENT_GROUP_ID", "value": "[parameters('managementGroupId')]" },
                   { "name": "STORAGE_ACCOUNT_ID", "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]" },
-                  { "name": "SUBSCRIPTION_ID", "value": "[parameters('subscriptionIdForDeployment')]" }
+                  { "name": "SUBSCRIPTION_ID", "value": "[parameters('subscriptionIdForDeployment')]" },
+                  { "name": "CLIENT_ID", "value": "[parameters('servicePrincipalClientId')]" },
+                  { "name": "CLIENT_SECRET", "secureValue": "[parameters('servicePrincipalClientSecret')]" },
+                  { "name": "TENANT_ID", "value": "[tenant().tenantId]" }
                 ],
-                "scriptContent": "# Get all subscriptions under the management group and create diagnostic settings\nWrite-Host \"Setting up diagnostic settings for all subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    # Get all subscriptions under the management group\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    \n    function Get-SubscriptionIds($node) {\n        $subscriptionIds = @()\n        if ($node.Children) {\n            foreach ($child in $node.Children) {\n                if ($child.Type -eq '/subscriptions') {\n                    $subscriptionIds += $child.Name\n                } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                    $subscriptionIds += Get-SubscriptionIds $child\n                }\n            }\n        }\n        return $subscriptionIds\n    }\n    \n    $allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\n    Write-Host \"Found $($allSubscriptionIds.Count) subscriptions to configure\"\n    \n    $successCount = 0\n    $failedSubscriptions = @()\n    \n    foreach ($subId in $allSubscriptionIds) {\n        try {\n            Write-Host \"Setting up diagnostic settings for subscription: $subId\"\n            \n            # Switch to the subscription context\n            Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null\n            \n            # Check if diagnostic setting already exists\n            $existingDiagnostics = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n            $diagnosticName = \"firefly-mg-diagnostics-$subId\"\n            \n            if ($existingDiagnostics | Where-Object { $_.Name -eq $diagnosticName }) {\n                Write-Host \"Diagnostic setting already exists for subscription $subId, updating...\"\n            } else {\n                Write-Host \"Creating new diagnostic setting for subscription $subId\"\n            }\n            \n            # Create/Update diagnostic setting for subscription activity logs\n            $logCategories = @(\n                @{ Category = 'Administrative'; Enabled = $true }\n                @{ Category = 'Security'; Enabled = $true }\n                @{ Category = 'ServiceHealth'; Enabled = $true }\n                @{ Category = 'Alert'; Enabled = $true }\n                @{ Category = 'Recommendation'; Enabled = $true }\n                @{ Category = 'Policy'; Enabled = $true }\n                @{ Category = 'Autoscale'; Enabled = $true }\n                @{ Category = 'ResourceHealth'; Enabled = $true }\n            )\n            \n            $diagnosticSetting = Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -Name $diagnosticName -StorageAccountId $Env:STORAGE_ACCOUNT_ID -Log $logCategories -Enabled $true\n            \n            if ($diagnosticSetting) {\n                Write-Host \"✓ Successfully configured diagnostic settings for subscription $subId\"\n                $successCount++\n            } else {\n                Write-Warning \"Failed to configure diagnostic settings for subscription $subId\"\n                $failedSubscriptions += $subId\n            }\n            \n        } catch {\n            Write-Warning \"Error configuring diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n            $failedSubscriptions += $subId\n        }\n    }\n    \n    Write-Host \"`n=== DIAGNOSTIC SETTINGS SUMMARY ===\"\n    Write-Host \"Total subscriptions: $($allSubscriptionIds.Count)\"\n    Write-Host \"Successfully configured: $successCount\"\n    Write-Host \"Failed: $($failedSubscriptions.Count)\"\n    \n    if ($failedSubscriptions.Count -gt 0) {\n        Write-Host \"Failed subscriptions: $($failedSubscriptions -join ', ')\"\n    }\n    \n} catch {\n    Write-Error \"Failed to configure diagnostic settings: $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
+                "scriptContent": "# Authenticate with Azure\nWrite-Host \"Authenticating with Azure...\"\ntry {\n    $securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n    $credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\n    $azContext = Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID\n    Write-Host \"Successfully authenticated with Azure. Tenant: $($azContext.Context.Tenant.Id)\"\n} catch {\n    Write-Error \"Azure authentication failed: $($_.Exception.Message)\"\n    exit 1\n}\n\n# Get all subscriptions under the management group and create diagnostic settings\nWrite-Host \"Setting up diagnostic settings for all subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    # Get all subscriptions under the management group\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    \n    function Get-SubscriptionIds($node) {\n        $subscriptionIds = @()\n        if ($node.Children) {\n            foreach ($child in $node.Children) {\n                if ($child.Type -eq '/subscriptions') {\n                    $subscriptionIds += $child.Name\n                } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                    $subscriptionIds += Get-SubscriptionIds $child\n                }\n            }\n        }\n        return $subscriptionIds\n    }\n    \n    $allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\n    Write-Host \"Found $($allSubscriptionIds.Count) subscriptions to configure\"\n    \n    $successCount = 0\n    $failedSubscriptions = @()\n    \n    foreach ($subId in $allSubscriptionIds) {\n        try {\n            Write-Host \"Setting up diagnostic settings for subscription: $subId\"\n            \n            # Switch to the subscription context\n            Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null\n            \n            # Check if diagnostic setting already exists\n            $existingDiagnostics = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n            $diagnosticName = \"firefly-mg-diagnostics-$subId\"\n            \n            if ($existingDiagnostics | Where-Object { $_.Name -eq $diagnosticName }) {\n                Write-Host \"Diagnostic setting already exists for subscription $subId, updating...\"\n            } else {\n                Write-Host \"Creating new diagnostic setting for subscription $subId\"\n            }\n            \n            # Create/Update diagnostic setting for subscription activity logs\n            $logCategories = @(\n                @{ Category = 'Administrative'; Enabled = $true }\n                @{ Category = 'Security'; Enabled = $true }\n                @{ Category = 'ServiceHealth'; Enabled = $true }\n                @{ Category = 'Alert'; Enabled = $true }\n                @{ Category = 'Recommendation'; Enabled = $true }\n                @{ Category = 'Policy'; Enabled = $true }\n                @{ Category = 'Autoscale'; Enabled = $true }\n                @{ Category = 'ResourceHealth'; Enabled = $true }\n            )\n            \n            $diagnosticSetting = Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -Name $diagnosticName -StorageAccountId $Env:STORAGE_ACCOUNT_ID -Log $logCategories -Enabled $true\n            \n            if ($diagnosticSetting) {\n                Write-Host \"✓ Successfully configured diagnostic settings for subscription $subId\"\n                $successCount++\n            } else {\n                Write-Warning \"Failed to configure diagnostic settings for subscription $subId\"\n                $failedSubscriptions += $subId\n            }\n            \n        } catch {\n            Write-Warning \"Error configuring diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n            $failedSubscriptions += $subId\n        }\n    }\n    \n    Write-Host \"`n=== DIAGNOSTIC SETTINGS SUMMARY ===\"\n    Write-Host \"Total subscriptions: $($allSubscriptionIds.Count)\"\n    Write-Host \"Successfully configured: $successCount\"\n    Write-Host \"Failed: $($failedSubscriptions.Count)\"\n    \n    if ($failedSubscriptions.Count -gt 0) {\n        Write-Host \"Failed subscriptions: $($failedSubscriptions -join ', ')\"\n    }\n    \n} catch {\n    Write-Error \"Failed to configure diagnostic settings: $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
               }
             }
           ]
@@ -470,7 +475,9 @@
           "storageAccountName": { "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]" },
           "resourceGroupName": { "value": "[variables('resourceGroupName')]" },
           "newguid": { "value": "[parameters('newguid')]" },
-          "subscriptionIdForDeployment": { "value": "[parameters('subscriptionIdForDeployment')]" }
+          "subscriptionIdForDeployment": { "value": "[parameters('subscriptionIdForDeployment')]" },
+          "servicePrincipalClientId": { "value": "[parameters('servicePrincipalClientId')]" },
+          "servicePrincipalClientSecret": { "value": "[parameters('servicePrincipalClientSecret')]" }
         }
       }
     },
