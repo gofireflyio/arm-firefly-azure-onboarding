@@ -425,8 +425,7 @@
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
-        "[concat('firefly-resources-', parameters('newguid'))]",
-        "[concat('firefly-mg-diagnostics-', parameters('newguid'))]"
+        "[concat('firefly-resources-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
