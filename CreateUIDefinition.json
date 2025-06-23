@@ -3,20 +3,22 @@
   "handler": "Microsoft.Azure.CreateUIDef",
   "version": "0.1.2-preview",
   "parameters": {
+    "basics": [
+      {
+        "name": "location",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Location",
+        "defaultValue": "global",
+        "toolTip": "Resources location",
+        "visible": false
+      }
+    ],
     "steps": [
       {
         "name": "integrationConfig",
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
-          {
-            "name": "location",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Location",
-            "defaultValue": "global",
-            "toolTip": "Resources location",
-            "visible": false
-          },
           {
             "name": "eventDrivenEnabled",
             "type": "Microsoft.Common.CheckBox",
