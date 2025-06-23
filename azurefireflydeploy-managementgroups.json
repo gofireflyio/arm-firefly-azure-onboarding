@@ -421,7 +421,7 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-mg-subscription-diagnostics-', parameters('newguid'))]",
+      "name": "[concat('firefly-mg-diagnostics-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
