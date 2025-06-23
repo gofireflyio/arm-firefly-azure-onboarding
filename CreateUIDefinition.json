@@ -3,31 +3,20 @@
   "handler": "Microsoft.Azure.CreateUIDef",
   "version": "0.1.2-preview",
   "parameters": {
-    "basics": [
-      {
-        "name": "projectDetailsInfo",
-        "type": "Microsoft.Common.InfoBox",
-        "visible": true,
-        "options": {
-          "icon": "Info",
-          "text": "The selected subscription and resource group will be used for Firefly monitoring infrastructure deployment. This will monitor the selected subscription for resource changes and cost optimization."
-        }
-      },
-      {
-        "name": "location",
-        "type": "Microsoft.Common.TextBox",
-        "label": "Location",
-        "defaultValue": "global",
-        "toolTip": "Resources location",
-        "visible": false
-      }
-    ],
     "steps": [
       {
         "name": "integrationConfig",
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
+          {
+            "name": "location",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Location",
+            "defaultValue": "global",
+            "toolTip": "Resources location",
+            "visible": false
+          },
           {
             "name": "eventDrivenEnabled",
             "type": "Microsoft.Common.CheckBox",
