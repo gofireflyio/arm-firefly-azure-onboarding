@@ -395,6 +395,86 @@
       }
     },
     {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "name": "[concat('firefly-mg-diagnostics-', parameters('newguid'))]",
+      "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]",
+      "dependsOn": [
+        "[concat('firefly-resources-', parameters('newguid'))]"
+      ],
+      "properties": {
+        "storageAccountId": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/firefly', uniqueString(parameters('subscriptionIdForDeployment')))]",
+        "logs": [
+          {
+            "category": "Administrative",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[parameters('eventDrivenEnabled')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-mg-subscription-diagnostics-', parameters('newguid'))]",
+      "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('firefly-resources-', parameters('newguid'))]",
+        "[concat('firefly-mg-diagnostics-', parameters('newguid'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "managementGroupId": { "type": "string" },
+            "storageAccountName": { "type": "string" },
+            "resourceGroupName": { "type": "string" },
+            "newguid": { "type": "string" },
+            "subscriptionIdForDeployment": { "type": "string" }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[concat('firefly-mg-diagnostics-script-', parameters('newguid'))]",
+              "location": "[deployment().location]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "retentionInterval": "PT1H",
+                "timeout": "PT30M",
+                "cleanupPreference": "Always",
+                "azPowerShellVersion": "8.1",
+                "environmentVariables": [
+                  { "name": "MANAGEMENT_GROUP_ID", "value": "[parameters('managementGroupId')]" },
+                  { "name": "STORAGE_ACCOUNT_ID", "value": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]" },
+                  { "name": "SUBSCRIPTION_ID", "value": "[parameters('subscriptionIdForDeployment')]" }
+                ],
+                "scriptContent": "# Get all subscriptions under the management group and create diagnostic settings\nWrite-Host \"Setting up diagnostic settings for all subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    # Get all subscriptions under the management group\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    \n    function Get-SubscriptionIds($node) {\n        $subscriptionIds = @()\n        if ($node.Children) {\n            foreach ($child in $node.Children) {\n                if ($child.Type -eq '/subscriptions') {\n                    $subscriptionIds += $child.Name\n                } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                    $subscriptionIds += Get-SubscriptionIds $child\n                }\n            }\n        }\n        return $subscriptionIds\n    }\n    \n    $allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\n    Write-Host \"Found $($allSubscriptionIds.Count) subscriptions to configure\"\n    \n    $successCount = 0\n    $failedSubscriptions = @()\n    \n    foreach ($subId in $allSubscriptionIds) {\n        try {\n            Write-Host \"Setting up diagnostic settings for subscription: $subId\"\n            \n            # Switch to the subscription context\n            Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null\n            \n            # Check if diagnostic setting already exists\n            $existingDiagnostics = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n            $diagnosticName = \"firefly-mg-diagnostics-$subId\"\n            \n            if ($existingDiagnostics | Where-Object { $_.Name -eq $diagnosticName }) {\n                Write-Host \"Diagnostic setting already exists for subscription $subId, updating...\"\n            } else {\n                Write-Host \"Creating new diagnostic setting for subscription $subId\"\n            }\n            \n            # Create/Update diagnostic setting for subscription activity logs\n            $logCategories = @(\n                @{ Category = 'Administrative'; Enabled = $true }\n                @{ Category = 'Security'; Enabled = $true }\n                @{ Category = 'ServiceHealth'; Enabled = $true }\n                @{ Category = 'Alert'; Enabled = $true }\n                @{ Category = 'Recommendation'; Enabled = $true }\n                @{ Category = 'Policy'; Enabled = $true }\n                @{ Category = 'Autoscale'; Enabled = $true }\n                @{ Category = 'ResourceHealth'; Enabled = $true }\n            )\n            \n            $diagnosticSetting = Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -Name $diagnosticName -StorageAccountId $Env:STORAGE_ACCOUNT_ID -Log $logCategories -Enabled $true\n            \n            if ($diagnosticSetting) {\n                Write-Host \"✓ Successfully configured diagnostic settings for subscription $subId\"\n                $successCount++\n            } else {\n                Write-Warning \"Failed to configure diagnostic settings for subscription $subId\"\n                $failedSubscriptions += $subId\n            }\n            \n        } catch {\n            Write-Warning \"Error configuring diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n            $failedSubscriptions += $subId\n        }\n    }\n    \n    Write-Host \"`n=== DIAGNOSTIC SETTINGS SUMMARY ===\"\n    Write-Host \"Total subscriptions: $($allSubscriptionIds.Count)\"\n    Write-Host \"Successfully configured: $successCount\"\n    Write-Host \"Failed: $($failedSubscriptions.Count)\"\n    \n    if ($failedSubscriptions.Count -gt 0) {\n        Write-Host \"Failed subscriptions: $($failedSubscriptions -join ', ')\"\n    }\n    \n} catch {\n    Write-Error \"Failed to configure diagnostic settings: $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
+              }
+            }
+          ]
+        },
+        "parameters": {
+          "managementGroupId": { "value": "[parameters('managementGroupId')]" },
+          "storageAccountName": { "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]" },
+          "resourceGroupName": { "value": "[variables('resourceGroupName')]" },
+          "newguid": { "value": "[parameters('newguid')]" },
+          "subscriptionIdForDeployment": { "value": "[parameters('subscriptionIdForDeployment')]" }
+        }
+      }
+    },
+    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-integration-', parameters('newguid'))]",
@@ -406,6 +486,9 @@
       ],
       "properties": {
         "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
@@ -445,7 +528,7 @@
                   { "name": "IS_AUTO_DISCOVER", "value": "true" },
                   { "name": "DIRECTORY_DOMAIN", "value": "[parameters('directoryDomain')]" }
                 ],
-                "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://prodapi.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) { Write-Error 'Auth failed'; exit 1 }\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n$mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) subscriptions under management group\"\n\n$headers = @{ 'Authorization' = \"Bearer $jwt\"; 'Content-Type' = 'application/json' }\n$successCount = 0; $failedSubscriptions = @()\n\n# Process each subscription\nforeach ($subId in $allSubscriptionIds) {\n    try {\n        $subscription = Get-AzSubscription -SubscriptionId $subId -ErrorAction Stop\n        $subscriptionDisplayName = $subscription.Name\n    } catch {\n        Write-Warning \"Could not retrieve subscription details for $subId. Using ID as name.\"\n        $subscriptionDisplayName = $subId\n    }\n    \n    Write-Host \"Creating integration for subscription: $subscriptionDisplayName ($subId)\"\n    \n    $bodyObj = [ordered]@{\n        subscriptionId = $subId; tenantId = $Env:TENANT_ID; applicationId = $Env:CLIENT_ID\n        clientSecret = $Env:CLIENT_SECRET; name = $subscriptionDisplayName\n        directoryDomain = $Env:DIRECTORY_DOMAIN; isProd = [bool]::Parse($Env:IS_PROD)\n        isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN); isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n        isIacAutoDiscoveryDisabled = $false\n    }\n    \n    try {\n        $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://prodapi.firefly.ai/api/integrations/azure?onConflictUpdate=true' -Headers $headers -Body ($bodyObj | ConvertTo-Json -Compress)\n        \n        if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n            Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n            $successCount++\n        } else {\n            Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n            $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n        }\n    } catch {\n        Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n        $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName}\n    }\n}\n\nWrite-Host \"Summary: Successfully created integrations: $successCount, Failed integrations: $($failedSubscriptions.Count)\"\nif ($failedSubscriptions.Count -gt 0) {\n    Write-Host \"Failed subscriptions:\"; $failedSubscriptions | ForEach-Object { Write-Host \" - $($_.Name) ($($_.Id))\" }\n}\nif ($successCount -eq 0 -and $allSubscriptionIds.Count -gt 0) { Write-Error \"All subscription integrations failed\"; exit 1 }\nWrite-Host \"Integration process completed successfully\""
+                "scriptContent": "# Authenticate with Firefly\nWrite-Host \"Authenticating with Firefly API...\"\ntry {\n    $authBody = @{\n        accessKey = $Env:FIREFLY_ACCESS_KEY\n        secretKey = $Env:FIREFLY_SECRET_KEY\n    } | ConvertTo-Json -Compress\n    \n    $tokenResp = Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://prodapi.firefly.ai/api/account/access_keys/login' -Body $authBody\n    $tokenObj = $tokenResp.Content | ConvertFrom-Json\n    $jwt = $tokenObj.access_token\n    \n    if (-not $jwt) { \n        Write-Error 'Failed to obtain access token from Firefly API'\n        exit 1 \n    }\n    Write-Host \"Successfully authenticated with Firefly API\"\n} catch {\n    Write-Error \"Firefly authentication failed: $($_.Exception.Message)\"\n    exit 1\n}\n\n# Login to Azure\nWrite-Host \"Logging into Azure...\"\ntry {\n    $securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n    $credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\n    $azContext = Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID\n    Write-Host \"Successfully logged into Azure. Tenant: $($azContext.Context.Tenant.Id)\"\n} catch {\n    Write-Error \"Azure authentication failed: $($_.Exception.Message)\"\n    exit 1\n}\n\n# Get all subscriptions under the management group\nWrite-Host \"Getting subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\ntry {\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    Write-Host \"Successfully retrieved management group hierarchy\"\n} catch {\n    Write-Error \"Failed to get management group $Env:MANAGEMENT_GROUP_ID : $($_.Exception.Message)\"\n    exit 1\n}\n\n# Function to extract subscription IDs from hierarchy\nfunction Get-SubscriptionIds($node) {\n    $subscriptionIds = @()\n    if ($node.Children) {\n        foreach ($child in $node.Children) {\n            if ($child.Type -eq '/subscriptions') {\n                $subscriptionIds += $child.Name\n                Write-Host \"Found subscription: $($child.DisplayName) ($($child.Name))\"\n            } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                Write-Host \"Processing child management group: $($child.DisplayName)\"\n                $subscriptionIds += Get-SubscriptionIds $child\n            }\n        }\n    }\n    return $subscriptionIds\n}\n\n$allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\nWrite-Host \"Found $($allSubscriptionIds.Count) total subscriptions under management group\"\n\nif ($allSubscriptionIds.Count -eq 0) {\n    Write-Warning \"No subscriptions found under management group $Env:MANAGEMENT_GROUP_ID\"\n    exit 0\n}\n\n$headers = @{ \n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n    'Accept' = 'application/json'\n}\n$successCount = 0\n$failedSubscriptions = @()\n\n# Process each subscription individually\nforeach ($subId in $allSubscriptionIds) {\n    try {\n        Write-Host \"Processing subscription: $subId\"\n        \n        # Get subscription details\n        try {\n            $subscription = Get-AzSubscription -SubscriptionId $subId -ErrorAction Stop\n            $subscriptionDisplayName = $subscription.Name\n            Write-Host \"Subscription details - Name: $subscriptionDisplayName, State: $($subscription.State)\"\n        } catch {\n            Write-Warning \"Could not retrieve subscription details for $subId. Using ID as name.\"\n            $subscriptionDisplayName = $subId\n        }\n        \n        # Skip disabled subscriptions\n        if ($subscription.State -eq 'Disabled') {\n            Write-Warning \"Skipping disabled subscription: $subscriptionDisplayName ($subId)\"\n            continue\n        }\n        \n        Write-Host \"Creating Firefly integration for subscription: $subscriptionDisplayName ($subId)\"\n        \n        # Prepare integration payload\n        $integrationPayload = [ordered]@{\n            subscriptionId = $subId\n            tenantId = $Env:TENANT_ID\n            applicationId = $Env:CLIENT_ID\n            clientSecret = $Env:CLIENT_SECRET\n            name = \"$subscriptionDisplayName (MG: $Env:MANAGEMENT_GROUP_ID)\"\n            directoryDomain = $Env:DIRECTORY_DOMAIN\n            isProd = [bool]::Parse($Env:IS_PROD)\n            isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN)\n            isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n            isIacAutoDiscoveryDisabled = $false\n        }\n        \n        $jsonPayload = $integrationPayload | ConvertTo-Json -Compress\n        Write-Host \"Payload: $jsonPayload\"\n        \n        # Make API call to create integration\n        try {\n            $apiResponse = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://prodapi.firefly.ai/api/integrations/azure?onConflictUpdate=true' -Headers $headers -Body $jsonPayload -ErrorAction Stop\n            \n            if ($apiResponse.StatusCode -eq 200 -or $apiResponse.StatusCode -eq 201) {\n                Write-Host \"✓ Successfully created integration for subscription: $subscriptionDisplayName ($subId)\"\n                $successCount++\n            } else {\n                Write-Warning \"⚠ Unexpected status code $($apiResponse.StatusCode) for subscription $subscriptionDisplayName ($subId)\"\n                Write-Host \"Response: $($apiResponse.Content)\"\n                $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName; Reason=\"HTTP $($apiResponse.StatusCode)\"}\n            }\n        } catch {\n            $errorMsg = $_.Exception.Message\n            if ($_.Exception.Response) {\n                $errorMsg += \" | Status: $($_.Exception.Response.StatusCode)\"\n                if ($_.Exception.Response.Content) {\n                    $errorMsg += \" | Response: $($_.Exception.Response.Content)\"\n                }\n            }\n            Write-Warning \"✗ Failed to create integration for subscription $subscriptionDisplayName ($subId): $errorMsg\"\n            $failedSubscriptions += @{Id=$subId; Name=$subscriptionDisplayName; Reason=$errorMsg}\n        }\n        \n        # Small delay to avoid rate limiting\n        Start-Sleep -Milliseconds 500\n        \n    } catch {\n        Write-Warning \"✗ Error processing subscription $subId : $($_.Exception.Message)\"\n        $failedSubscriptions += @{Id=$subId; Name=$subId; Reason=$_.Exception.Message}\n    }\n}\n\n# Summary\nWrite-Host \"`n=== INTEGRATION SUMMARY ===\"\nWrite-Host \"Total subscriptions found: $($allSubscriptionIds.Count)\"\nWrite-Host \"Successful integrations: $successCount\"\nWrite-Host \"Failed integrations: $($failedSubscriptions.Count)\"\n\nif ($failedSubscriptions.Count -gt 0) {\n    Write-Host \"`nFailed subscriptions:\"\n    $failedSubscriptions | ForEach-Object { \n        Write-Host \" - $($_.Name) ($($_.Id)) - Reason: $($_.Reason)\" \n    }\n}\n\nif ($successCount -eq 0 -and $allSubscriptionIds.Count -gt 0) {\n    Write-Error \"All subscription integrations failed\"\n    exit 1\n} elseif ($successCount -gt 0) {\n    Write-Host \"✓ Integration process completed successfully with $successCount successful integrations\"\n} else {\n    Write-Host \"No subscriptions were processed\"\n}"
               }
             }
           ]
