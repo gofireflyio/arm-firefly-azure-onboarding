@@ -19,16 +19,7 @@
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
-          {
-            "name": "eventDrivenEnabled",
-            "type": "Microsoft.Common.CheckBox",
-            "label": "Enable Event-Driven Monitoring",
-            "toolTip": "Enable event-driven monitoring for this subscription. When enabled, this will create storage accounts, event grid topics, and diagnostic settings for real-time monitoring.",
-            "constraints": {
-              "required": false
-            },
-            "visible": true
-          },
+
           {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
@@ -47,7 +38,7 @@
             "constraints": {
               "required": false
             },
-            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
+            "visible": true
           },
           {
             "name": "tags",
@@ -237,7 +228,6 @@
       "isProd": "[steps('integrationConfig').isProd]",
       "isMultiSubscription": "[steps('integrationConfig').isMultiSubscription]",
       "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
-      "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "tags": "[steps('integrationConfig').tags]"
     }

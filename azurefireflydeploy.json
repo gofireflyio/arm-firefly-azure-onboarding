@@ -39,7 +39,7 @@
     },
     "eventDrivenEnabled": {
       "type": "bool",
-      "defaultValue": false,
+      "defaultValue": true,
       "metadata": { "description": "Enable event-driven monitoring for this subscription" }
     },
     "fireflyWebhookUrl": {

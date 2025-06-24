@@ -125,16 +125,7 @@
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
-          {
-            "name": "eventDrivenEnabled",
-            "type": "Microsoft.Common.CheckBox",
-            "label": "Enable Event-Driven Monitoring",
-            "toolTip": "Enable event-driven monitoring for all subscriptions under the management group. When enabled, this will create a shared storage account, event grid topic, and diagnostic settings for real-time monitoring.",
-            "constraints": {
-              "required": false
-            },
-            "visible": true
-          },
+
           {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
@@ -153,7 +144,7 @@
             "constraints": {
               "required": false
             },
-            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
+            "visible": true
           },
           {
             "name": "directoryDomain",
@@ -175,11 +166,11 @@
             "defaultValue": "https://azure-events.firefly.ai",
             "toolTip": "Firefly webhook URL for event notifications. Leave default unless instructed otherwise by Firefly support.",
             "constraints": {
-              "required": "[steps('integrationConfig').eventDrivenEnabled]",
+              "required": true,
               "regex": "^https?://.*$",
               "validationMessage": "Must be a valid HTTPS URL"
             },
-            "visible": "[steps('integrationConfig').eventDrivenEnabled]"
+            "visible": true
           },
           {
             "name": "tags",
@@ -337,7 +328,6 @@
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
-      "eventDrivenEnabled": "[steps('integrationConfig').eventDrivenEnabled]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "fireflyWebhookUrl": "[steps('integrationConfig').fireflyWebhookUrl]",
       "directoryDomain": "[steps('integrationConfig').directoryDomain]",
