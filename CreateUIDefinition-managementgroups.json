@@ -41,9 +41,9 @@
         "filter": true,
         "multiselect": false,
         "selectAll": false,
-        "defaultValue": "[map(filter(steps('basics').armio.value,(i) => equals(i.type,'Microsoft.Management/managementGroups')),(item) => item.properties.displayName)]",
+        "defaultValue": "",
         "constraints": {
-          "allowedValues": "[map(filter(steps('basics').armio.value,(i)=> equals(i.type, 'Microsoft.Management/managementGroups')), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
+          "allowedValues": "[map(filter(basics('armio').value,(i)=> equals(i.type, 'Microsoft.Management/managementGroups')), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
           "required": true
         },
         "visible": true
@@ -57,9 +57,9 @@
         "filter": true,
         "multiselect": false,
         "selectAll": false,
-        "defaultValue": "[map(filter(steps('basics').armio.value,(i) => and(not(equals(i.type,'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions,'noaccess'),equals(i.properties.inheritedPermissions,'noaccess'))))),(item) => item.properties.displayName)]",
+        "defaultValue": "",
         "constraints": {
-          "allowedValues": "[map(filter(steps('basics').armio.value,(i)=>and(not(equals(i.type, 'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
+          "allowedValues": "[map(filter(basics('armio').value,(i)=>and(not(equals(i.type, 'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
           "required": true
         },
         "visible": true
@@ -322,12 +322,15 @@
       "location": "[basics('location')]",
       "managementGroupId": "[basics('managementGroupId')]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
+      "resourceGroupOption": "[basics('resourceGroupOption')]",
+      "resourceGroupForDeploymentName": "[if(equals(basics('resourceGroupOption'), 'existing'), basics('resourceGroupForDeployment'), '')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
+      "eventDrivenEnabled": true,
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "fireflyWebhookUrl": "[steps('integrationConfig').fireflyWebhookUrl]",
       "directoryDomain": "[steps('integrationConfig').directoryDomain]",

@@ -38,6 +38,17 @@
       "type": "string",
       "metadata": { "description": "Subscription ID where deployment resources will be created" }
     },
+    "resourceGroupOption": {
+      "type": "string",
+      "defaultValue": "new",
+      "allowedValues": ["new", "existing"],
+      "metadata": { "description": "Whether to create a new resource group or use existing one" }
+    },
+    "resourceGroupForDeploymentName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Name of existing resource group (when using existing option)" }
+    },
     "eventDrivenEnabled": {
       "type": "bool",
       "defaultValue": true,
@@ -95,10 +106,11 @@
       "firefly": "true"
     },
     "mergedTags": "[union(variables('defaultTags'), variables('customTagsObject'))]",
-    "resourceGroupName": "[concat('firefly-monitoring-mg-', parameters('managementGroupId'))]"
+    "resourceGroupName": "[if(equals(parameters('resourceGroupOption'), 'new'), concat('firefly-monitoring-mg-', parameters('managementGroupId')), parameters('resourceGroupForDeploymentName'))]"
   },
   "resources": [
     {
+      "condition": "[equals(parameters('resourceGroupOption'), 'new')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-resource-group-', parameters('newguid'))]",
@@ -194,9 +206,7 @@
       "name": "[concat('firefly-roles-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "location": "[parameters('location')]",
-      "dependsOn": [
-        "[concat('firefly-resource-group-', parameters('newguid'))]"
-      ],
+      "dependsOn": "[if(equals(parameters('resourceGroupOption'), 'new'), array(concat('firefly-resource-group-', parameters('newguid'))), createArray())]",
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -309,10 +319,7 @@
       "name": "[concat('firefly-resources-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
-      "dependsOn": [
-        "[concat('firefly-resource-group-', parameters('newguid'))]",
-        "[concat('firefly-roles-', parameters('newguid'))]"
-      ],
+      "dependsOn": "[union(if(equals(parameters('resourceGroupOption'), 'new'), array(concat('firefly-resource-group-', parameters('newguid'))), createArray()), array(concat('firefly-roles-', parameters('newguid'))))]",
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
@@ -501,10 +508,7 @@
       "name": "[concat('firefly-integration-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
-      "dependsOn": [
-        "[concat('firefly-resource-group-', parameters('newguid'))]",
-        "[concat('firefly-roles-', parameters('newguid'))]"
-      ],
+      "dependsOn": "[union(if(equals(parameters('resourceGroupOption'), 'new'), array(concat('firefly-resource-group-', parameters('newguid'))), createArray()), array(concat('firefly-roles-', parameters('newguid'))))]",
       "properties": {
         "mode": "Incremental",
         "expressionEvaluationOptions": {
