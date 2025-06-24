@@ -140,11 +140,11 @@ Firefly is a comprehensive cloud asset management platform that helps organizati
 
 ### **Option 1: Single/Multi-Subscription Deployment**
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2F1.0.1.0%2Fazurefireflydeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2F1.0.1.0%2FCreateUIDefinition.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition.json)
 
 ### **Option 2: Management Group Deployment**
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2F1.0.1.0%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2F1.0.1.0%2FCreateUIDefinition-managementgroups.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-managementgroups.json)
 
 ### **Option 3: Offboarding (Remove Firefly Integration)**
 
