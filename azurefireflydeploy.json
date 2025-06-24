@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
+  "contentVersion": "1.0.1.0",
   "parameters": {
     "location": {
       "type": "string",
@@ -39,7 +39,7 @@
     },
     "eventDrivenEnabled": {
       "type": "bool",
-      "defaultValue": false,
+      "defaultValue": true,
       "metadata": { "description": "Enable event-driven monitoring for this subscription" }
     },
     "fireflyWebhookUrl": {

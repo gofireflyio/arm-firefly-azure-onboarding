@@ -133,7 +133,7 @@
             "constraints": {
               "required": false
             },
-            "visible": true
+            "visible": false
           },
           {
             "name": "isProd",
@@ -212,7 +212,7 @@
                 },
                 {
                   "id": "tagValue",
-                  "header": "Tag Value", 
+                  "header": "Tag Value",
                   "width": "1fr",
                   "element": {
                     "type": "Microsoft.Common.TextBox",
@@ -298,7 +298,7 @@
                 "confirmPassword": "Re-enter Firefly Access Key"
             },
             "toolTip": "Enter your Firefly Access Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Access Key is required"
@@ -315,7 +315,7 @@
                 "confirmPassword": "Re-enter Firefly Secret Key"
             },
             "toolTip": "Enter your Firefly Secret Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Secret Key is required"
@@ -344,6 +344,4 @@
       "tags": "[steps('integrationConfig').tags]"
     }
   }
-} 
-
-
+}
