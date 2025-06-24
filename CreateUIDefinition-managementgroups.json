@@ -21,32 +21,18 @@
         "visible": true,
         "options": {
           "icon": "Info",
-          "text": "The selection of management group below defines the subscriptions Firefly will monitor. Any subscriptions within the selected scope, including any subscriptions created in the future, will be automatically discovered and monitored by Firefly. You must have the <b>owner</b> role in the Management Group selected.\n\nThe selection of subscription and resource group defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
+          "text": "The management group selected in 'Project details' above defines the subscriptions Firefly will monitor. Any subscriptions within the selected scope, including any subscriptions created in the future, will be automatically discovered and monitored by Firefly. You must have the <b>owner</b> role in the Management Group selected.\n\nThe selection of subscription and resource group below defines where the deployment script will be created. It has no impact on which subscriptions will be monitored by Firefly."
         }
       },
+
+
       {
-        "name": "armio",
+        "name": "subscriptionApi",
         "type": "Microsoft.Solutions.ArmApiControl",
         "request": {
-          "method": "POST",
-          "path": "/providers/Microsoft.Management/getEntities?api-version=2020-05-01&$skiptoken="
+          "method": "GET",
+          "path": "/subscriptions?api-version=2020-01-01"
         }
-      },
-      {
-        "name": "managementGroupId",
-        "type": "Microsoft.Common.DropDown",
-        "label": "Management Group",
-        "toolTip": "Select the management group to monitor. All subscriptions under this management group will be automatically discovered and monitored by Firefly.",
-        "filterPlaceholder": "Select management group scope",
-        "filter": true,
-        "multiselect": false,
-        "selectAll": false,
-        "defaultValue": "",
-        "constraints": {
-          "allowedValues": "[map(filter(basics('armio').value,(i)=> equals(i.type, 'Microsoft.Management/managementGroups')), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
-          "required": true
-        },
-        "visible": true
       },
       {
         "name": "subscriptionForDeployment",
@@ -57,9 +43,8 @@
         "filter": true,
         "multiselect": false,
         "selectAll": false,
-        "defaultValue": "",
         "constraints": {
-          "allowedValues": "[map(filter(basics('armio').value,(i)=>and(not(equals(i.type, 'Microsoft.Management/managementGroups')),not(and(equals(i.properties.permissions, 'noaccess'),equals(i.properties.inheritedPermissions, 'noaccess')))  )), (item)=> parse(concat('{\"label\":\"', item.properties.displayName, '\",\"value\":\"', item.name, '\"}')))]",
+          "allowedValues": "[map(basics('subscriptionApi').value, (item) => parse(concat('{\"label\":\"', item.displayName, '\",\"value\":\"', item.subscriptionId, '\"}')))]",
           "required": true
         },
         "visible": true
@@ -320,10 +305,8 @@
     ],
     "outputs": {
       "location": "[basics('location')]",
-      "managementGroupId": "[basics('managementGroupId')]",
+      "managementGroupId": "[managementGroup().name]",
       "subscriptionIdForDeployment": "[basics('subscriptionForDeployment')]",
-      "resourceGroupOption": "[basics('resourceGroupOption')]",
-      "resourceGroupForDeploymentName": "[if(equals(basics('resourceGroupOption'), 'existing'), basics('resourceGroupForDeployment'), '')]",
       "servicePrincipalClientId": "[steps('servicePrincipal').createAppReg.ServicePrincipal.appId]",
       "servicePrincipalObjectId": "[first(steps('servicePrincipal').createAppReg.ServicePrincipal.objectId)]",
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
