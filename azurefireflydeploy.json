@@ -34,7 +34,7 @@
     },
     "isMultiSubscription": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": { "description": "Whether this is a multi-subscription deployment" }
     },
     "eventDrivenEnabled": {

@@ -88,15 +88,36 @@
             "visible": true
           },
           {
+            "name": "isMultiSubscription",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Multi-Subscription Deployment",
+            "toolTip": "Enable to deploy Firefly monitoring to multiple subscriptions. When enabled, you can select additional subscriptions to monitor.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          },
+          {
+            "name": "multiSubscriptionInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[steps('integrationConfig').isMultiSubscription]",
+            "options": {
+              "icon": "Info",
+              "text": "Multi-subscription deployment will create the same monitoring infrastructure (storage account, event grid, diagnostic settings) in each selected subscription. The service principal will be granted the same permissions across all subscriptions."
+            }
+          },
+          {
             "name": "targetSubscriptions",
             "type": "Microsoft.Common.DropDown",
             "label": "Target Subscriptions",
             "placeholder": "Select additional subscriptions to monitor",
             "toolTip": "Select the subscriptions where you want to deploy Firefly monitoring infrastructure. The current subscription is automatically included.",
             "constraints": {
-              "required": false
+              "allowedValues": "[map(steps('integrationConfig').subscriptionApi.value, (item) => parse(concat('{\"label\":\"', item.displayName, ' (', item.subscriptionId, ')\",\"value\":\"', item.subscriptionId, '\"}')))]",
+              "required": "[steps('integrationConfig').isMultiSubscription]"
             },
-            "visible": true
+            "visible": "[steps('integrationConfig').isMultiSubscription]",
+            "multiselect": true
           },
           {
             "name": "subscriptionApi",
@@ -205,7 +226,8 @@
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
-      "targetSubscriptions": "[steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]'))]",
+      "isMultiSubscription": "[steps('integrationConfig').isMultiSubscription]",
+      "targetSubscriptions": "[if(steps('integrationConfig').isMultiSubscription, steps('integrationConfig').targetSubscriptions, parse(concat('[\"', subscription().subscriptionId, '\"]')))]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "tags": "[steps('integrationConfig').tags]"
     }
