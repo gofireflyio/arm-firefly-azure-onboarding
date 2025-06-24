@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
+  "contentVersion": "1.0.1.0",
   "parameters": {
     "managementGroupId": {
       "defaultValue": "[managementGroup().name]",
@@ -40,7 +40,7 @@
     },
     "eventDrivenEnabled": {
       "type": "bool",
-      "defaultValue": false,
+      "defaultValue": true,
       "metadata": { "description": "Enable event-driven monitoring for subscriptions" }
     },
     "fireflyWebhookUrl": {
@@ -184,7 +184,7 @@
       "properties": {
         "roleDefinitionId": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'), '/providers/Microsoft.Authorization/roleDefinitions/', 'ac63b705-f282-497d-ac71-919bf39d939d')]",
         "principalId": "[parameters('servicePrincipalObjectId')]",
-        "principalType": "ServicePrincipal",  
+        "principalType": "ServicePrincipal",
         "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]"
       }
     },
@@ -585,4 +585,4 @@
       }
     }
   }
-} 
+}
