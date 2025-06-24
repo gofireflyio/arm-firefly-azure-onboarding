@@ -288,8 +288,6 @@
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "fireflyWebhookUrl": "[steps('integrationConfig').fireflyWebhookUrl]",
-      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
       "tags": "[steps('integrationConfig').tags]"
     }
   }
