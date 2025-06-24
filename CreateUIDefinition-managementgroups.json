@@ -132,32 +132,6 @@
             "visible": true
           },
           {
-            "name": "directoryDomain",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Directory Domain",
-            "defaultValue": "firefly.ai",
-            "toolTip": "Directory domain for Firefly integration. Leave default unless instructed otherwise by Firefly support.",
-            "constraints": {
-              "required": true,
-              "regex": "^[a-zA-Z0-9._-]+$",
-              "validationMessage": "Domain must be a valid domain name"
-            },
-            "visible": true
-          },
-          {
-            "name": "fireflyWebhookUrl",
-            "type": "Microsoft.Common.TextBox",
-            "label": "Firefly Webhook URL",
-            "defaultValue": "https://azure-events.firefly.ai",
-            "toolTip": "Firefly webhook URL for event notifications. Leave default unless instructed otherwise by Firefly support.",
-            "constraints": {
-              "required": true,
-              "regex": "^https?://.*$",
-              "validationMessage": "Must be a valid HTTPS URL"
-            },
-            "visible": true
-          },
-          {
             "name": "tags",
             "type": "Microsoft.Common.EditableGrid",
             "ariaLabel": "Custom tags for resources",
@@ -313,7 +287,6 @@
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
       "isProd": "[steps('integrationConfig').isProd]",
-      "eventDrivenEnabled": true,
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "fireflyWebhookUrl": "[steps('integrationConfig').fireflyWebhookUrl]",
       "directoryDomain": "[steps('integrationConfig').directoryDomain]",
