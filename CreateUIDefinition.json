@@ -212,7 +212,13 @@
       "isProd": "[steps('integrationConfig').isProd]",
       "targetSubscriptions": "[steps('integrationConfig').targetSubscriptions]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
-      "tags": "[steps('integrationConfig').tags]"
+      "tags": "[steps('integrationConfig').tags]",
+      "isMultiSubscription": "[greater(length(steps('integrationConfig').targetSubscriptions), 1)]",
+      "eventDrivenEnabled": true,
+      "fireflyWebhookUrl": "https://azure-events.firefly.ai",
+      "fireflyEips": "[\"3.224.145.192\",\"54.83.245.177\",\"3.213.167.195\",\"54.146.252.237\",\"34.226.97.113\"]",
+      "directoryDomain": "firefly.ai",
+      "newguid": "[newGuid()]"
     }
   }
 }
