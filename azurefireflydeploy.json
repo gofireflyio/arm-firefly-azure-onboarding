@@ -240,7 +240,9 @@
                               "Microsoft.Search/searchServices/listQueryKeys/action",
                               "Microsoft.Search/searchServices/listAdminKeys/action",
                               "Microsoft.Authorization/roleAssignments/read",
-                              "Microsoft.OperationalInsights/workspaces/sharedkeys/action"
+                              "Microsoft.OperationalInsights/workspaces/sharedkeys/action",
+                              "Microsoft.ServiceBus/namespaces/listkeys/action",
+                              "Microsoft.ServiceBus/namespaces/connectionStrings/action"
                             ],
                             "notActions": [],
                             "dataActions": [],
