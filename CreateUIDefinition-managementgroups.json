@@ -127,6 +127,19 @@
         "elements": [
 
           {
+            "name": "directoryDomain",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Directory Domain",
+            "toolTip": "Enter the directory domain for Firefly integration (e.g., yourcompany.com).",
+            "placeholder": "yourcompany.com",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
+              "validationMessage": "Please enter a valid domain name (e.g., example.com)"
+            },
+            "visible": true
+          },
+          {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
             "label": "Production Environment",
@@ -301,6 +314,7 @@
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
       "isProd": "[steps('integrationConfig').isProd]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
       "tags": "[steps('integrationConfig').tags]"

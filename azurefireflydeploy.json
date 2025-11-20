@@ -75,7 +75,6 @@
     },
     "directoryDomain": {
       "type": "string",
-      "defaultValue": "firefly.ai",
       "metadata": { "description": "Directory domain for Firefly integration" }
     },
     "newguid": {
