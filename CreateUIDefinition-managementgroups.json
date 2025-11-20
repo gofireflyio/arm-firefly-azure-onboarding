@@ -125,7 +125,6 @@
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
-
           {
             "name": "directoryDomain",
             "type": "Microsoft.Common.TextBox",
