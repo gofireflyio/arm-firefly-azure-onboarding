@@ -394,7 +394,7 @@
                         "timeout": "PT5M",
                         "cleanupPreference": "Always",
                         "azPowerShellVersion": "8.1",
-                        "scriptContent": "$response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get\n$ips = $response.ips\nif (-not $ips -or $ips.Count -eq 0) {\n    Write-Error 'Failed to fetch IPs from Firefly API or received empty response'\n    exit 1\n}\n$output = @{fireflyIps = $ips}\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['result'] = $output\nWrite-Host \"Successfully fetched $($ips.Count) IPs from Firefly API\"",
+                        "scriptContent": "$response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get\n$ips = $response.ips\nif (-not $ips -or $ips.Count -eq 0) {\n    Write-Error 'Failed to fetch IPs from Firefly API or received empty response'\n    exit 1\n}\nWrite-Host \"Successfully fetched $($ips.Count) IPs from Firefly API:\"\nforeach ($ip in $ips) {\n    Write-Host \"  - $ip\"\n}\n$output = @{fireflyIps = $ips}\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['result'] = $output",
                         "forceUpdateTag": "[parameters('newguid')]"
                       }
                     },
