@@ -22,8 +22,8 @@
           {
             "name": "directoryDomain",
             "type": "Microsoft.Common.TextBox",
-            "label": "XX2",
-            "toolTip": "XXX",
+            "label": "Directory Domain",
+            "toolTip": "Enter the directory domain for Firefly integration (e.g., yourcompany.com).",
             "placeholder": "yourcompany.com",
             "constraints": {
               "required": true,
