@@ -8,11 +8,11 @@
       "metadata": { "description": "Resources location" }
     },
     "servicePrincipalObjectId": {
-      "type": "String",
+      "type": "string",
       "metadata": { "description": "Service principal Object Id, needed for Role Assignment" }
     },
     "servicePrincipalClientId": {
-      "type": "String",
+      "type": "string",
       "metadata": { "description": "Service principal Client Id" }
     },
     "servicePrincipalClientSecret": {
@@ -52,7 +52,7 @@
       "defaultValue": false,
       "metadata": { "description": "Enforce storage network rules to restrict access to Firefly IPs only" }
     },
-    "fireflyEips": {
+    "fireflyEipsFallback": {
       "type": "array",
       "defaultValue": [
         "3.224.145.192",
@@ -68,7 +68,7 @@
         "98.83.246.85",
         "54.144.58.153"
       ],
-      "metadata": { "description": "Firefly IP addresses for storage account network rules" }
+      "metadata": { "description": "Fallback Firefly IP addresses if API fetch fails" }
     },
     "tags": {
       "type": "array",
@@ -106,6 +106,72 @@
     {
       "type": "Microsoft.Resources/resourceGroups",
       "apiVersion": "2021-04-01",
+      "name": "firefly-ip-fetch-rg",
+      "location": "[parameters('location')]",
+      "tags": "[variables('mergedTags')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-fetch-ips-', parameters('newguid'))]",
+      "location": "[parameters('location')]",
+      "resourceGroup": "firefly-ip-fetch-rg",
+      "dependsOn": [
+        "firefly-ip-fetch-rg"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "location": { "value": "[parameters('location')]" },
+          "newguid": { "value": "[parameters('newguid')]" },
+          "fallbackIps": { "value": "[parameters('fireflyEipsFallback')]" }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "location": { "type": "string" },
+            "newguid": { "type": "string" },
+            "fallbackIps": { "type": "array" }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "retentionInterval": "PT1H",
+                "timeout": "PT5M",
+                "cleanupPreference": "Always",
+                "azPowerShellVersion": "8.1",
+                "environmentVariables": [
+                  {
+                    "name": "FALLBACK_IPS",
+                    "value": "[string(parameters('fallbackIps'))]"
+                  }
+                ],
+                "scriptContent": "try {\n    $response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get -ErrorAction Stop\n    $ips = $response.ips\n    if ($ips -and $ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($ips.Count) IP addresses from Firefly API\"\n        $DeploymentScriptOutputs = @{}\n        $DeploymentScriptOutputs['ips'] = $ips\n    } else {\n        Write-Warning \"API returned empty IP list, using fallback IPs\"\n        $fallbackIps = $Env:FALLBACK_IPS | ConvertFrom-Json\n        $DeploymentScriptOutputs = @{}\n        $DeploymentScriptOutputs['ips'] = $fallbackIps\n    }\n} catch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message). Using fallback IPs.\"\n    $fallbackIps = $Env:FALLBACK_IPS | ConvertFrom-Json\n    $DeploymentScriptOutputs = @{}\n    $DeploymentScriptOutputs['ips'] = $fallbackIps\n}"
+              }
+            }
+          ],
+          "outputs": {
+            "fireflyIps": {
+              "type": "array",
+              "value": "[reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.ips]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
       "name": "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
       "location": "[parameters('location')]",
       "tags": "[variables('mergedTags')]",
@@ -122,7 +188,8 @@
       "location": "[parameters('location')]",
       "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
       "dependsOn": [
-        "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]"
+        "[concat('firefly-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
+        "[concat('firefly-fetch-ips-', parameters('newguid'))]"
       ],
       "copy": {
         "name": "deploymentLoop",
@@ -147,7 +214,7 @@
           "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
           "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
           "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
-          "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+          "fireflyEips": { "value": "[reference(concat('firefly-fetch-ips-', parameters('newguid'))).outputs.fireflyIps.value]" },
           "isProd": { "value": "[parameters('isProd')]" },
           "newguid": { "value": "[parameters('newguid')]" },
           "directoryDomain": { "value": "[parameters('directoryDomain')]" },
@@ -670,7 +737,8 @@
         "totalSubscriptions": "[length(variables('effectiveSubscriptions'))]",
         "isMultiSubscription": "[parameters('isMultiSubscription')]",
         "eventDrivenEnabled": "[parameters('eventDrivenEnabled')]",
-        "deploymentMethod": "[if(parameters('isMultiSubscription'), 'Multi-Subscription', 'Single-Subscription')]"
+        "deploymentMethod": "[if(parameters('isMultiSubscription'), 'Multi-Subscription', 'Single-Subscription')]",
+        "fireflyIpsUsed": "[reference(concat('firefly-fetch-ips-', parameters('newguid'))).outputs.fireflyIps.value]"
       }
     },
     "subscriptionResults": {
