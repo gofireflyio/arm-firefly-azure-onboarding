@@ -465,7 +465,7 @@
                   "outputs": {
                     "fetchedFireflyIps": {
                       "type": "array",
-                      "value": "[reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.result.fireflyIps]"
+                      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-firefly-ips-', parameters('newguid')))).outputs.result.fireflyIps]"
                     }
                   }
                 }
@@ -666,11 +666,6 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "string",
               "value": "[if(parameters('eventDrivenEnabled'), parameters('uniqueEventGridTopicName'), '')]"
-            },
-            "fetchedFireflyIps": {
-              "condition": "[parameters('eventDrivenEnabled')]",
-              "type": "array",
-              "value": "[if(parameters('eventDrivenEnabled'), reference(concat('firefly-resources-', parameters('newguid'))).outputs.fetchedFireflyIps.value, createArray())]"
             }
           }
         }
