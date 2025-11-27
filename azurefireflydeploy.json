@@ -382,14 +382,11 @@
                     "eventDrivenEnabled": { "type": "bool" },
                     "resourceGroupName": { "type": "string" }
                   },
-                  "variables": {
-                    "fetchIpsScriptName": "[concat('fetch-firefly-ips-', parameters('newguid'))]"
-                  },
                   "resources": [
                     {
                       "type": "Microsoft.Resources/deploymentScripts",
                       "apiVersion": "2020-10-01",
-                      "name": "[variables('fetchIpsScriptName')]",
+                      "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
                       "location": "[parameters('location')]",
                       "kind": "AzurePowerShell",
                       "properties": {
@@ -416,10 +413,10 @@
                         "allowBlobPublicAccess": true,
                         "crossTenantReplicationEnabled": false,
                         "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(variables('fetchIpsScriptName')).outputs.result.fireflyIps, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.result.fireflyIps, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
                       },
                       "dependsOn": [
-                        "[variables('fetchIpsScriptName')]"
+                        "[concat('fetch-firefly-ips-', parameters('newguid'))]"
                       ]
                     },
                     {
