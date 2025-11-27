@@ -115,7 +115,6 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-fetch-ips-', parameters('newguid'))]",
-      "location": "[parameters('location')]",
       "resourceGroup": "firefly-ip-fetch-rg",
       "dependsOn": [
         "firefly-ip-fetch-rg"
