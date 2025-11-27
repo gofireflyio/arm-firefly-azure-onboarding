@@ -343,11 +343,60 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
+              "name": "[concat('firefly-fetch-ips-', parameters('newguid'))]",
+              "resourceGroup": "[variables('resourceGroupName')]",
+              "dependsOn": [
+                "[variables('resourceGroupName')]"
+              ],
+              "properties": {
+                "mode": "Incremental",
+                "parameters": {
+                  "newguid": { "value": "[parameters('newguid')]" },
+                  "location": { "value": "[parameters('location')]" }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "newguid": { "type": "string" },
+                    "location": { "type": "string" }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
+                      "properties": {
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT5M",
+                        "cleanupPreference": "Always",
+                        "azPowerShellVersion": "8.1",
+                        "scriptContent": "$response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get\n$ips = $response.ips\nif (-not $ips -or $ips.Count -eq 0) {\n    Write-Error 'Failed to fetch IPs from Firefly API or received empty response'\n    exit 1\n}\nWrite-Host \"Successfully fetched $($ips.Count) IPs from Firefly API:\"\nforeach ($ip in $ips) {\n    Write-Host \"  - $ip\"\n}\n$output = @{fireflyIps = $ips}\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['result'] = $output",
+                        "forceUpdateTag": "[parameters('newguid')]"
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "fireflyIps": {
+                      "type": "array",
+                      "value": "[reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.result.fireflyIps]"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "condition": "[parameters('eventDrivenEnabled')]",
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2021-04-01",
               "name": "[concat('firefly-resources-', parameters('newguid'))]",
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
                 "[variables('resourceGroupName')]",
-                "[concat('firefly-roles-', parameters('newguid'))]"
+                "[concat('firefly-roles-', parameters('newguid'))]",
+                "[concat('firefly-fetch-ips-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -358,7 +407,7 @@
                   "newguid": { "value": "[parameters('newguid')]" },
                   "mergedTags": { "value": "[parameters('mergedTags')]" },
                   "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
-                  "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+                  "fireflyEips": { "value": "[reference(concat('firefly-fetch-ips-', parameters('newguid'))).outputs.fireflyIps.value]" },
                   "location": { "value": "[parameters('location')]" },
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
@@ -384,21 +433,6 @@
                   },
                   "resources": [
                     {
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
-                      "location": "[parameters('location')]",
-                      "kind": "AzurePowerShell",
-                      "properties": {
-                        "retentionInterval": "PT1H",
-                        "timeout": "PT5M",
-                        "cleanupPreference": "Always",
-                        "azPowerShellVersion": "8.1",
-                        "scriptContent": "$response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get\n$ips = $response.ips\nif (-not $ips -or $ips.Count -eq 0) {\n    Write-Error 'Failed to fetch IPs from Firefly API or received empty response'\n    exit 1\n}\nWrite-Host \"Successfully fetched $($ips.Count) IPs from Firefly API:\"\nforeach ($ip in $ips) {\n    Write-Host \"  - $ip\"\n}\n$output = @{fireflyIps = $ips}\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['result'] = $output",
-                        "forceUpdateTag": "[parameters('newguid')]"
-                      }
-                    },
-                    {
                       "type": "Microsoft.Storage/storageAccounts",
                       "apiVersion": "2021-09-01",
                       "name": "[parameters('uniqueStorageAccountName')]",
@@ -413,11 +447,8 @@
                         "allowBlobPublicAccess": true,
                         "crossTenantReplicationEnabled": false,
                         "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.result.fireflyIps, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
-                      },
-                      "dependsOn": [
-                        "[concat('fetch-firefly-ips-', parameters('newguid'))]"
-                      ]
+                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                      }
                     },
                     {
                       "type": "Microsoft.EventGrid/systemTopics",
