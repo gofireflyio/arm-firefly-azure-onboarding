@@ -461,13 +461,7 @@
                         }
                       }
                     }
-                  ],
-                  "outputs": {
-                    "fetchedFireflyIps": {
-                      "type": "array",
-                      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-firefly-ips-', parameters('newguid')))).outputs.result.fireflyIps]"
-                    }
-                  }
+                  ]
                 }
               }
             },
