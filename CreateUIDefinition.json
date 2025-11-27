@@ -22,7 +22,7 @@
           {
             "name": "directoryDomain",
             "type": "Microsoft.Common.TextBox",
-            "label": "XX",
+            "label": "XX2",
             "toolTip": "XXX",
             "placeholder": "yourcompany.com",
             "constraints": {
