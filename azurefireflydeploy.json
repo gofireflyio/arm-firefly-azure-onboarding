@@ -8,11 +8,11 @@
       "metadata": { "description": "Resources location" }
     },
     "servicePrincipalObjectId": {
-      "type": "String",
+      "type": "string",
       "metadata": { "description": "Service principal Object Id, needed for Role Assignment" }
     },
     "servicePrincipalClientId": {
-      "type": "String",
+      "type": "string",
       "metadata": { "description": "Service principal Client Id" }
     },
     "servicePrincipalClientSecret": {
@@ -54,21 +54,8 @@
     },
     "fireflyEips": {
       "type": "array",
-      "defaultValue": [
-        "3.224.145.192",
-        "54.166.221.160",
-        "52.22.128.83",
-        "54.83.245.177",
-        "52.86.171.233",
-        "34.200.154.87",
-        "34.226.97.113",
-        "100.25.162.125",
-        "18.209.82.232",
-        "54.146.252.237",
-        "98.83.246.85",
-        "54.144.58.153"
-      ],
-      "metadata": { "description": "Firefly IP addresses for storage account network rules" }
+      "defaultValue": [],
+      "metadata": { "description": "Firefly IP addresses for storage account network rules - will be fetched dynamically from Firefly API" }
     },
     "tags": {
       "type": "array",
@@ -395,8 +382,25 @@
                     "eventDrivenEnabled": { "type": "bool" },
                     "resourceGroupName": { "type": "string" }
                   },
-                  "variables": {},
+                  "variables": {
+                    "fetchIpsScriptName": "[concat('fetch-firefly-ips-', parameters('newguid'))]"
+                  },
                   "resources": [
+                    {
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[variables('fetchIpsScriptName')]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
+                      "properties": {
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT5M",
+                        "cleanupPreference": "Always",
+                        "azPowerShellVersion": "8.1",
+                        "scriptContent": "$response = Invoke-RestMethod -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' -Method Get\n$ips = $response.publicNatIps\nif (-not $ips -or $ips.Count -eq 0) {\n    Write-Error 'Failed to fetch IPs from Firefly API or received empty response'\n    exit 1\n}\n$output = @{fireflyIps = $ips}\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['result'] = $output\nWrite-Host \"Successfully fetched $($ips.Count) IPs from Firefly API\"",
+                        "forceUpdateTag": "[parameters('newguid')]"
+                      }
+                    },
                     {
                       "type": "Microsoft.Storage/storageAccounts",
                       "apiVersion": "2021-09-01",
@@ -412,8 +416,11 @@
                         "allowBlobPublicAccess": true,
                         "crossTenantReplicationEnabled": false,
                         "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
-                      }
+                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(variables('fetchIpsScriptName')).outputs.result.fireflyIps, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                      },
+                      "dependsOn": [
+                        "[variables('fetchIpsScriptName')]"
+                      ]
                     },
                     {
                       "type": "Microsoft.EventGrid/systemTopics",
