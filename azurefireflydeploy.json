@@ -434,7 +434,7 @@
                         "allowBlobPublicAccess": true,
                         "crossTenantReplicationEnabled": false,
                         "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(resourceId('Microsoft.Resources/deploymentScripts', 'fetch-firefly-ips')).outputs.ips, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(resourceId('Microsoft.Resources/deploymentScripts', 'fetch-firefly-ips'), '2020-10-01').outputs.ips, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
                       }
                     },
                     {
