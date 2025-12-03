@@ -1,0 +1,173 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "temp-firefly-test",
+      "metadata": {
+        "description": "Resource group name for test resources"
+      }
+    },
+    "fallbackIps": {
+      "type": "array",
+      "defaultValue": [
+        "3.224.145.192",
+        "54.166.221.160",
+        "52.22.128.83"
+      ],
+      "metadata": {
+        "description": "Fallback IP addresses if API call fails"
+      }
+    },
+    "newguid": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "Unique GUID for deployment"
+      }
+    }
+  },
+  "variables": {
+    "deploymentScriptName": "fetch-firefly-ips",
+    "nsgName": "firefly-test-nsg"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "purpose": "firefly-test",
+        "createdBy": "arm-template"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "[concat('firefly-test-deployment-', parameters('newguid'))]",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "dependsOn": [
+        "[parameters('resourceGroupName')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "fallbackIps": {
+            "value": "[parameters('fallbackIps')]"
+          },
+          "deploymentScriptName": {
+            "value": "[variables('deploymentScriptName')]"
+          },
+          "nsgName": {
+            "value": "[variables('nsgName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "fallbackIps": {
+              "type": "array"
+            },
+            "deploymentScriptName": {
+              "type": "string"
+            },
+            "nsgName": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[parameters('deploymentScriptName')]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "retentionInterval": "PT1H",
+                "timeout": "PT5M",
+                "azPowerShellVersion": "8.1",
+                "cleanupPreference": "Always",
+                "environmentVariables": [
+                  {
+                    "name": "FALLBACK_IPS",
+                    "value": "[string(parameters('fallbackIps'))]"
+                  }
+                ],
+                "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\"\n"
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2022-07-01",
+              "name": "[parameters('nsgName')]",
+              "location": "[parameters('location')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', parameters('deploymentScriptName'))]"
+              ],
+              "properties": {
+                "securityRules": "[map(reference(resourceId('Microsoft.Resources/deploymentScripts', parameters('deploymentScriptName'))).outputs.ips, lambda('ip', 'index', createObject('name', concat('Allow-Firefly-IP-', lambdaVariables('index')), 'properties', createObject('priority', add(1000, lambdaVariables('index')), 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourcePortRange', '*', 'destinationPortRange', '443', 'sourceAddressPrefix', lambdaVariables('ip'), 'destinationAddressPrefix', '*', 'description', concat('Allow HTTPS from Firefly IP ', lambdaVariables('ip'))))))]"
+              }
+            }
+          ],
+          "outputs": {
+            "fetchedIps": {
+              "type": "array",
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', parameters('deploymentScriptName'))).outputs.ips]"
+            },
+            "nsgResourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "location": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "fireflyIps": {
+      "type": "array",
+      "value": "[reference(concat('firefly-test-deployment-', parameters('newguid'))).outputs.fetchedIps.value]"
+    },
+    "nsgResourceId": {
+      "type": "string",
+      "value": "[reference(concat('firefly-test-deployment-', parameters('newguid'))).outputs.nsgResourceId.value]"
+    },
+    "deploymentSummary": {
+      "type": "object",
+      "value": {
+        "resourceGroup": "[parameters('resourceGroupName')]",
+        "nsgName": "[variables('nsgName')]",
+        "ipCount": "[length(reference(concat('firefly-test-deployment-', parameters('newguid'))).outputs.fetchedIps.value)]",
+        "message": "Successfully created NSG with security rules for Firefly IPs"
+      }
+    }
+  }
+}
