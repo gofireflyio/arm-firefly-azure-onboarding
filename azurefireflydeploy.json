@@ -108,10 +108,17 @@
       ],
       "properties": {
         "mode": "Incremental",
+        "parameters": {
+          "newguid": { "value": "[parameters('newguid')]" },
+          "location": { "value": "[parameters('location')]" }
+        },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
-          "parameters": {},
+          "parameters": {
+            "newguid": { "type": "string" },
+            "location": { "type": "string" }
+          },
           "resources": [
             {
               "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
@@ -146,7 +153,7 @@
           "outputs": {
             "fireflyIps": {
               "type": "array",
-              "value": "[reference(concat('fetch-ips-script-', parameters('newguid'))).outputs.ips]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-ips-script-', parameters('newguid')))).outputs.ips]"
             }
           }
         }
