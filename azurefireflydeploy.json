@@ -445,7 +445,7 @@
                           "outputs": {
                             "fireflyIps": {
                               "type": "array",
-                              "value": "[reference('fetch-firefly-ips').outputs.ips]"
+                              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'fetch-firefly-ips')).outputs.ips]"
                             }
                           }
                         }
