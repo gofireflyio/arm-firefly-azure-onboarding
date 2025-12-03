@@ -395,14 +395,11 @@
                     "eventDrivenEnabled": { "type": "bool" },
                     "resourceGroupName": { "type": "string" }
                   },
-                  "variables": {
-                    "deploymentScriptName": "[concat('fetch-firefly-ips-', parameters('newguid'))]"
-                  },
                   "resources": [
                     {
                       "type": "Microsoft.Resources/deploymentScripts",
                       "apiVersion": "2020-10-01",
-                      "name": "[variables('deploymentScriptName')]",
+                      "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
                       "location": "[parameters('location')]",
                       "kind": "AzurePowerShell",
                       "properties": {
@@ -430,7 +427,7 @@
                       },
                       "kind": "StorageV2",
                       "dependsOn": [
-                        "[resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))]"
+                        "[resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-firefly-ips-', parameters('newguid')))]"
                       ],
                       "properties": {
                         "accessTier": "Hot",
