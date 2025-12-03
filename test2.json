@@ -5,7 +5,7 @@
     "location": {
       "type": "string",
       "defaultValue": "eastus",
-      "metadata": { "description": "Resources location V4" }
+      "metadata": { "description": "Resources location V5" }
     },
     "enforceStorageNetworkRules": {
       "type": "bool",
@@ -147,14 +147,10 @@
                         "name": "Standard_LRS"
                       },
                       "kind": "StorageV2",
-                      "dependsOn": [
-                        "[resourceId('Microsoft.Resources/deploymentScripts', 'fetch-firefly-ips')]"
-                      ],
                       "properties": {
                         "accessTier": "Hot",
                         "allowBlobPublicAccess": true,
-                        "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(resourceId('Microsoft.Resources/deploymentScripts', 'fetch-firefly-ips'), '2020-10-01').outputs.ips, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                        "minimumTlsVersion": "TLS1_2"
                       }
                     }
                   ],
