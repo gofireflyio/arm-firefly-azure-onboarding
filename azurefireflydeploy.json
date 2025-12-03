@@ -395,8 +395,30 @@
                     "eventDrivenEnabled": { "type": "bool" },
                     "resourceGroupName": { "type": "string" }
                   },
-                  "variables": {},
+                  "variables": {
+                    "deploymentScriptName": "[concat('fetch-firefly-ips-', parameters('newguid'))]"
+                  },
                   "resources": [
+                    {
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[variables('deploymentScriptName')]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
+                      "properties": {
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT5M",
+                        "azPowerShellVersion": "8.1",
+                        "cleanupPreference": "Always",
+                        "environmentVariables": [
+                          {
+                            "name": "FALLBACK_IPS",
+                            "value": "[string(parameters('fireflyEips'))]"
+                          }
+                        ],
+                        "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\"\n"
+                      }
+                    },
                     {
                       "type": "Microsoft.Storage/storageAccounts",
                       "apiVersion": "2021-09-01",
@@ -407,12 +429,15 @@
                         "name": "Standard_LRS"
                       },
                       "kind": "StorageV2",
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))]"
+                      ],
                       "properties": {
                         "accessTier": "Hot",
                         "allowBlobPublicAccess": true,
                         "crossTenantReplicationEnabled": false,
                         "minimumTlsVersion": "TLS1_2",
-                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(parameters('fireflyEips'), lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
+                        "networkAcls": "[if(parameters('enforceStorageNetworkRules'), createObject('defaultAction', 'Deny', 'ipRules', map(reference(resourceId('Microsoft.Resources/deploymentScripts', variables('deploymentScriptName'))).outputs.ips, lambda('ip', createObject('value', lambdaVariables('ip'), 'action', 'Allow')))), createObject('defaultAction', 'Allow'))]"
                       }
                     },
                     {
