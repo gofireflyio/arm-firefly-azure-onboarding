@@ -153,7 +153,7 @@
           "outputs": {
             "fireflyIps": {
               "type": "array",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-ips-script-', parameters('newguid')))).outputs.ips]"
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', concat('fetch-ips-script-', parameters('newguid'))), '2020-10-01').outputs.ips]"
             }
           }
         }
