@@ -5,7 +5,7 @@
     "location": {
       "type": "string",
       "defaultValue": "eastus",
-      "metadata": { "description": "Resources location V3" }
+      "metadata": { "description": "Resources location V4" }
     },
     "enforceStorageNetworkRules": {
       "type": "bool",
