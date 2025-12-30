@@ -92,14 +92,14 @@
                             "value": "Ahmed Salah"
                           }
                         ],
-                        "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\""
+                        "scriptContent": "$DeploymentScriptOutputs = @{}; $DeploymentScriptOutputs['name'] = $Env:MY_NAME; Write-Output ($DeploymentScriptOutputs | ConvertTo-Json -Compress)"
                       }
                     }
                   ],
                   "outputs": {
                     "sharedValue": {
-                      "type": "array",
-                      "value": "[reference('test-deployment-script', '2020-10-01', 'Full').properties.outputs.ips]"
+                      "type": "string",
+                      "value": "[reference('test-deployment-script', '2020-10-01', 'Full').properties.outputs.name]"
                     }
                   }
                 }
@@ -128,7 +128,7 @@
                   "contentVersion": "1.0.0.0",
                   "parameters": {
                     "sharedValue": {
-                      "type": "array",
+                      "type": "string",
                       "metadata": {
                         "description": "A shared value from parent deployment."
                       }
@@ -143,7 +143,7 @@
                       "sku": { "name": "Standard_LRS" },
                       "kind": "StorageV2",
                       "tags": {
-                        "owner": "[string(parameters('sharedValue'))]",
+                        "owner": "[parameters('sharedValue')]",
                         "environment": "Test"
                       }
                     }
