@@ -54,8 +54,7 @@
     },
     "fireflyEips": {
       "type": "array",
-      "defaultValue": [
-      ],
+      "defaultValue": [],
       "metadata": { "description": "Firefly IP addresses for storage account network rules" }
     },
     "tags": {
@@ -411,6 +410,9 @@
               ],
               "properties": {
                 "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
                 "parameters": {
                   "uniqueStorageAccountName": { "value": "[parameters('uniqueStorageAccountName')]" },
                   "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
