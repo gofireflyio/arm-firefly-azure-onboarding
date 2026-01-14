@@ -56,15 +56,16 @@
       "type": "array",
       "defaultValue": [
         "3.224.145.192",
+        "54.83.245.177",
+        "34.226.97.113",
+        "54.146.252.237",
+        "3.213.167.195",
         "54.166.221.160",
         "52.22.128.83",
-        "54.83.245.177",
         "52.86.171.233",
         "34.200.154.87",
-        "34.226.97.113",
         "100.25.162.125",
         "18.209.82.232",
-        "54.146.252.237",
         "98.83.246.85",
         "54.144.58.153"
       ],
@@ -363,6 +364,64 @@
               }
             },
             {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2021-04-01",
+              "name": "[concat('fetch-firefly-ips-', parameters('newguid'))]",
+              "resourceGroup": "[variables('resourceGroupName')]",
+              "dependsOn": [
+                "[variables('resourceGroupName')]"
+              ],
+              "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "parameters": {
+                  "location": { "value": "[parameters('location')]" },
+                  "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+                  "newguid": { "value": "[parameters('newguid')]" }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "location": { "type": "string" },
+                    "fireflyEips": { "type": "array" },
+                    "newguid": { "type": "string" }
+                  },
+                  "variables": {
+                    "fallbackIps": "[string(parameters('fireflyEips'))]"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[concat('fetch-ips-script-', parameters('newguid'))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzurePowerShell",
+                      "properties": {
+                        "retentionInterval": "PT1H",
+                        "timeout": "PT5M",
+                        "containerSettings": {},
+                        "cleanupPreference": "Always",
+                        "azPowerShellVersion": "8.1",
+                        "environmentVariables": [
+                          { "name": "FALLBACK_IPS", "value": "[variables('fallbackIps')]" }
+                        ],
+                        "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\""
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "fireflyIps": {
+                      "type": "array",
+                      "value": "[reference(concat('fetch-ips-script-', parameters('newguid')), '2020-10-01', 'Full').properties.outputs.ips]"
+                    }
+                  }
+                }
+              }
+            },
+            {
               "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
@@ -370,10 +429,14 @@
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
                 "[variables('resourceGroupName')]",
-                "[concat('firefly-roles-', parameters('newguid'))]"
+                "[concat('firefly-roles-', parameters('newguid'))]",
+                "[concat('fetch-firefly-ips-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
                 "parameters": {
                   "uniqueStorageAccountName": { "value": "[parameters('uniqueStorageAccountName')]" },
                   "servicePrincipalObjectId": { "value": "[parameters('servicePrincipalObjectId')]" },
@@ -381,7 +444,7 @@
                   "newguid": { "value": "[parameters('newguid')]" },
                   "mergedTags": { "value": "[parameters('mergedTags')]" },
                   "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
-                  "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+                  "fireflyEips": { "value": "[reference(concat('fetch-firefly-ips-', parameters('newguid'))).outputs.fireflyIps.value]" },
                   "location": { "value": "[parameters('location')]" },
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
