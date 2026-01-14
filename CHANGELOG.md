@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/gofireflyio/arm-firefly-azure-onboarding/compare/v1.0.1...v1.1.0) (2026-01-14)
+
+
+### Features
+
+* Fetching Firefly EIPs using FireflyPublicAPI ([#13](https://github.com/gofireflyio/arm-firefly-azure-onboarding/issues/13)) ([31a2602](https://github.com/gofireflyio/arm-firefly-azure-onboarding/commit/31a2602e693071c97d0fe247ebf2ee70a9528b25))
+
 ### [1.0.1](https://github.com/gofireflyio/arm-firefly-azure-onboarding/compare/v1.0.0...v1.0.1) (2026-01-14)
 
 
