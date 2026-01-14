@@ -22,7 +22,7 @@
           {
             "name": "directoryDomain",
             "type": "Microsoft.Common.TextBox",
-            "label": "Directory Domain v2",
+            "label": "Directory Domain",
             "toolTip": "Enter the directory domain for Firefly integration (e.g., yourcompany.com).",
             "placeholder": "yourcompany.com",
             "constraints": {
