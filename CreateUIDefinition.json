@@ -19,7 +19,19 @@
         "type": "Microsoft.Common.Section",
         "label": "Integration Configuration",
         "elements": [
-
+          {
+            "name": "directoryDomain",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Directory Domain",
+            "toolTip": "Enter the directory domain for Firefly integration (e.g., yourcompany.com).",
+            "placeholder": "yourcompany.com",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
+              "validationMessage": "Please enter a valid domain name (e.g., example.com)"
+            },
+            "visible": true
+          },
           {
             "name": "isProd",
             "type": "Microsoft.Common.CheckBox",
@@ -71,15 +83,15 @@
                 },
                 {
                   "id": "tagValue",
-                  "header": "Tag Value", 
+                  "header": "Tag Value",
                   "width": "1fr",
                   "element": {
                     "type": "Microsoft.Common.TextBox",
                     "placeholder": "Production",
                     "constraints": {
                       "required": true,
-                      "regex": "^[a-zA-Z0-9_\\s-]+$",
-                      "validationMessage": "Tag value must contain only letters, numbers, spaces, underscores, and hyphens"
+                      "regex": "^[\\w\\s\\-./:@()]+$",
+                      "validationMessage": "Tag value may include letters, numbers, spaces, underscore (_), hyphen (-), dot (.), slash (/), colon (:), at (@), and parentheses"
                     }
                   }
                 }
@@ -162,11 +174,11 @@
             "name": "ffAccessKey",
             "type": "Microsoft.Common.PasswordBox",
             "label": {
-                "password": "Firefly Access Key",
-                "confirmPassword": "Re-enter Firefly Access Key"
+              "password": "Firefly Access Key",
+              "confirmPassword": "Re-enter Firefly Access Key"
             },
             "toolTip": "Enter your Firefly Access Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Access Key is required"
@@ -179,11 +191,11 @@
             "name": "ffSecretKey",
             "type": "Microsoft.Common.PasswordBox",
             "label": {
-                "password": "Firefly Secret Key",
-                "confirmPassword": "Re-enter Firefly Secret Key"
+              "password": "Firefly Secret Key",
+              "confirmPassword": "Re-enter Firefly Secret Key"
             },
             "toolTip": "Enter your Firefly Secret Key.",
-            "constraints": { 
+            "constraints": {
               "required": true,
               "regex": "^.+$",
               "validationMessage": "Firefly Secret Key is required"
@@ -202,6 +214,7 @@
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "directoryDomain": "[steps('integrationConfig').directoryDomain]",
       "isProd": "[steps('integrationConfig').isProd]",
       "targetSubscriptions": "[steps('integrationConfig').targetSubscriptions]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",

@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Node 16
+        uses: actions/setup-node@v6
+        with:
+          node-version: 16
+
+      - name: Release
+        uses: cycjimmy/semantic-release-action@v2
+        id: semantic
+        with:
+          semantic_version: 18.0.0
+          extra_plugins: |
+            @semantic-release/changelog@6.0.0
+            @semantic-release/git@10.0.0
+            conventional-changelog-conventionalcommits@4.6.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          
+      - name: Get release version
+        id: get_version
+        run: |
+          if [ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]; then
+            echo "version=${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.semantic.outputs.last_release_version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display Release Info
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          NEW_RELEASE="${{ steps.semantic.outputs.new_release_published }}"
+
+          echo "::notice title=📦 Release Version::${VERSION}"
+
+          echo "### 🚀 Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| New Release Published | ${NEW_RELEASE} |" >> $GITHUB_STEP_SUMMARY
