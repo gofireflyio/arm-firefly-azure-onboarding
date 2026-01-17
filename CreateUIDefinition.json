@@ -138,15 +138,11 @@
                   "sectionHeader": "Service Principal"
                 },
                 "toolTip": {
-                  "servicePrincipalId": "Service Principal for Firefly integration"
-                },
-                "defaultValue": {
-                  "principalId": "<default guid>",
-                  "name": "(New) default App Id"
+                  "servicePrincipalId": "Service Principal for Firefly integration",
+                  "password": "Client Secret is required for authentication"
                 },
                 "constraints": {
-                  "required": true,
-                  "validationMessage": "Must be a valid client secret"
+                  "required": true
                 },
                 "options": {
                   "hideCertificate": true
