@@ -153,6 +153,10 @@
                   "servicePrincipalId": "Service Principal for Firefly integration",
                   "password": "Client Secret is required for authentication"
                 },
+                "defaultValue": {
+                  "principalId": "",
+                  "name": ""
+                },
                 "constraints": {
                   "required": true,
                   "validationMessage": "Service Principal and Client Secret are required"
