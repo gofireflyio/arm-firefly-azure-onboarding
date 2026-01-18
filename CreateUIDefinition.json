@@ -154,7 +154,8 @@
                   "password": "Client Secret is required for authentication"
                 },
                 "constraints": {
-                  "required": true
+                  "required": true,
+                  "validationMessage": "Service Principal and Client Secret are required"
                 },
                 "options": {
                   "hideCertificate": true
