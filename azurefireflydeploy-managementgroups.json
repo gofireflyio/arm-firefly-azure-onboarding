@@ -92,13 +92,6 @@
       "metadata": {
         "description": "Just a Guid to append to deployment script name"
       }
-    },
-    "useExistingResources": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-        "description": "When true, skips creation of storage account, event grid, roles, and diagnostic settings (assumes they already exist)"
-      }
     }
   },
   "variables": {
@@ -137,7 +130,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly reader mg', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
@@ -149,7 +142,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly billing reader mg', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
@@ -161,7 +154,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly app config reader mg', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
@@ -173,7 +166,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly security reader mg', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
@@ -185,7 +178,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2020-10-01-preview",
       "name": "[guid(parameters('managementGroupId'), 'firefly monitoring reader mg', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
@@ -208,7 +201,7 @@
       }
     },
     {
-      "condition": "[not(parameters('useExistingResources'))]",
+      
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-roles-', parameters('newguid'))]",
@@ -384,7 +377,7 @@
       }
     },
     {
-      "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+      "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-resources-', parameters('newguid'))]",
@@ -492,7 +485,7 @@
       }
     },
     {
-      "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+      "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Insights/diagnosticSettings",
       "apiVersion": "2021-05-01-preview",
       "name": "[concat('firefly-mg-diagnostics-', parameters('newguid'))]",
@@ -515,7 +508,7 @@
       }
     },
     {
-      "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+      "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
       "name": "[concat('firefly-mg-diagnostics-', parameters('newguid'))]",
