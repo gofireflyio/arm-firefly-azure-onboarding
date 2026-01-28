@@ -154,7 +154,31 @@ Firefly is a comprehensive cloud asset management platform that helps organizati
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-managementgroups.json)
 
-⚠️ **Offboarding Template**: Completely removes all Azure resources created by Firefly onboarding.
+### **Offboarding (Azure CLI)**
+
+To remove Firefly resources from your Azure subscription, run these commands:
+
+```
+# 1. List Firefly diagnostic settings
+az monitor diagnostic-settings subscription list --query "[?contains(name, 'firefly')]"
+
+# 2. Delete diagnostic settings (replace <name> with actual name from step 1)
+az monitor diagnostic-settings subscription delete --name "<name>" --yes
+
+# 3. List Firefly resource groups
+az group list --query "[?contains(name, 'firefly')].{Name:name, Location:location}" -o table
+
+# 4. Delete Firefly resource group (this deletes all resources inside)
+az group delete --name "firefly-monitoring-<subscription-id>" --yes
+
+# 5. List Firefly custom role definitions
+az role definition list --custom-role-only --query "[?contains(roleName, 'Firefly')].{Name:roleName}" -o table
+
+# 6. Delete Firefly custom role definition (replace <role-name> with actual name)
+az role definition delete --name "<role-name>"
+```
+
+> **Note:** Remember to also remove the integration from the Firefly dashboard.
 
 ## 📝 Step-by-Step Deployment Guide
 
@@ -455,10 +479,8 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ### **Template Components**
 - 📋 [azurefireflydeploy.json](azurefireflydeploy.json) - Main onboarding template
 - 📋 [azurefireflydeploy-managementgroups.json](azurefireflydeploy-managementgroups.json) - Management group deployment
-- 🗑️ [azurefirelfyoffboard.json](azurefirelfyoffboard.json) - Offboarding template
 - 🎨 [CreateUIDefinition.json](CreateUIDefinition.json) - UI for single/multi-subscription onboarding
 - 🎨 [CreateUIDefinition-managementgroups.json](CreateUIDefinition-managementgroups.json) - UI for management group deployment
-- 🎨 [CreateUIDefinition-offboard.json](CreateUIDefinition-offboard.json) - UI for offboarding
 
 ## 📄 License
 

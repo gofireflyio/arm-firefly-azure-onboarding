@@ -91,13 +91,6 @@
       "metadata": {
           "description": "Just a Guid to append to deployment script name"
       }
-    },
-    "useExistingResources": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-          "description": "When true, skips creation of storage account and event grid topic (assumes they already exist)"
-      }
     }
   },
   "variables": {
@@ -159,8 +152,7 @@
           "isProd": { "value": "[parameters('isProd')]" },
           "newguid": { "value": "[parameters('newguid')]" },
           "directoryDomain": { "value": "[parameters('directoryDomain')]" },
-          "location": { "value": "[parameters('location')]" },
-          "useExistingResources": { "value": "[parameters('useExistingResources')]" }
+          "location": { "value": "[parameters('location')]" }
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
@@ -183,8 +175,7 @@
             "isProd": { "type": "bool" },
             "newguid": { "type": "string" },
             "directoryDomain": { "type": "string" },
-            "location": { "type": "string" },
-            "useExistingResources": { "type": "bool" }
+            "location": { "type": "string" }
           },
           "variables": {
             "resourceGroupName": "[concat('firefly-monitoring-', parameters('targetSubscriptionId'))]"
@@ -199,7 +190,6 @@
               "properties": {}
             },
             {
-              "condition": "[not(parameters('useExistingResources'))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-roles-', parameters('newguid'))]",
@@ -422,7 +412,7 @@
               }
             },
             {
-              "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-resources-', parameters('newguid'))]",
@@ -449,8 +439,7 @@
                   "uniqueEventGridTopicName": { "value": "[parameters('uniqueEventGridTopicName')]" },
                   "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
                   "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
-                  "resourceGroupName": { "value": "[variables('resourceGroupName')]" },
-                  "useExistingResources": { "value": "[parameters('useExistingResources')]" }
+                  "resourceGroupName": { "value": "[variables('resourceGroupName')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -467,13 +456,11 @@
                     "uniqueEventGridTopicName": { "type": "string" },
                     "fireflyWebhookUrl": { "type": "string" },
                     "eventDrivenEnabled": { "type": "bool" },
-                    "resourceGroupName": { "type": "string" },
-                    "useExistingResources": { "type": "bool" }
+                    "resourceGroupName": { "type": "string" }
                   },
                   "variables": {},
                   "resources": [
                     {
-                      "condition": "[not(parameters('useExistingResources'))]",
                       "type": "Microsoft.Storage/storageAccounts",
                       "apiVersion": "2021-09-01",
                       "name": "[parameters('uniqueStorageAccountName')]",
@@ -492,7 +479,6 @@
                       }
                     },
                     {
-                      "condition": "[not(parameters('useExistingResources'))]",
                       "type": "Microsoft.EventGrid/systemTopics",
                       "apiVersion": "2021-12-01",
                       "name": "[parameters('uniqueEventGridTopicName')]",
@@ -507,7 +493,6 @@
                       ]
                     },
                     {
-                      "condition": "[not(parameters('useExistingResources'))]",
                       "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
                       "apiVersion": "2021-12-01",
                       "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-webhook')]",
@@ -540,7 +525,7 @@
               }
             },
             {
-              "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-storage-roles-', parameters('newguid'))]",
@@ -666,7 +651,7 @@
               }
             },
             {
-              "condition": "[and(parameters('eventDrivenEnabled'), not(parameters('useExistingResources')))]",
+              "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
               "name": "[concat('firefly-diag-settings-', parameters('newguid'))]",
