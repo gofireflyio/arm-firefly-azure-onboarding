@@ -130,13 +130,13 @@
       "firefly": "true"
     },
     "mergedTags": "[union(variables('defaultTags'), variables('customTagsObject'))]",
-    "resourceGroupName": "[concat('firefly-eumonitoring-mg-', parameters('managementGroupId'))]"
+    "resourceGroupName": "[concat('firefly-eu-monitoring-mg-', parameters('managementGroupId'))]"
   },
   "resources": [
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-euresource-group-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-resource-group-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -226,11 +226,11 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-euroles-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-roles-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[concat('firefly-euresource-group-', parameters('newguid'))]"
+        "[concat('firefly-eu-resource-group-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -293,7 +293,7 @@
               "apiVersion": "2022-04-01",
               "name": "[guid('fireflyStorageBlobReader', subscription().subscriptionId)]",
               "properties": {
-                "roleName": "[concat('firefly-euStorageBlobReader-', uniqueString(subscription().subscriptionId))]",
+                "roleName": "[concat('firefly-eu-StorageBlobReader-', uniqueString(subscription().subscriptionId))]",
                 "description": "Firefly's storage blob read permissions",
                 "type": "customRole",
                 "permissions": [
@@ -340,7 +340,7 @@
         },
         "parameters": {
           "customRoleName": {
-            "value": "[concat('firefly-euMG-', uniqueString(parameters('managementGroupId')))]"
+            "value": "[concat('firefly-eu-MG-', uniqueString(parameters('managementGroupId')))]"
           },
           "servicePrincipalObjectId": {
             "value": "[parameters('servicePrincipalObjectId')]"
@@ -354,11 +354,11 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('fetch-firefly-euips-', parameters('newguid'))]",
+      "name": "[concat('fetch-firefly-eu-ips-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
-        "[concat('firefly-euresource-group-', parameters('newguid'))]"
+        "[concat('firefly-eu-resource-group-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -429,13 +429,13 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-euresources-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-resources-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
-        "[concat('firefly-euresource-group-', parameters('newguid'))]",
-        "[concat('firefly-euroles-', parameters('newguid'))]",
-        "[concat('fetch-firefly-euips-', parameters('newguid'))]"
+        "[concat('firefly-eu-resource-group-', parameters('newguid'))]",
+        "[concat('firefly-eu-roles-', parameters('newguid'))]",
+        "[concat('fetch-firefly-eu-ips-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -513,7 +513,7 @@
             {
               "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
               "apiVersion": "2021-12-01",
-              "name": "[concat(parameters('eventGridTopicName'), '/firefly-euwebhook')]",
+              "name": "[concat(parameters('eventGridTopicName'), '/firefly-eu-webhook')]",
               "dependsOn": [
                 "[parameters('eventGridTopicName')]"
               ],
@@ -559,7 +559,7 @@
             "value": "[concat('firefly', uniqueString(parameters('subscriptionIdForDeployment')))]"
           },
           "eventGridTopicName": {
-            "value": "[concat('firefly-eumg-', substring(parameters('managementGroupId'), 0, 8), '-', parameters('newguid'))]"
+            "value": "[concat('firefly-eu-mg-', substring(parameters('managementGroupId'), 0, 8), '-', parameters('newguid'))]"
           },
           "servicePrincipalObjectId": {
             "value": "[parameters('servicePrincipalObjectId')]"
@@ -574,7 +574,7 @@
             "value": "[parameters('enforceStorageNetworkRules')]"
           },
           "fireflyEips": {
-            "value": "[reference(concat('fetch-firefly-euips-', parameters('newguid'))).outputs.fireflyIps.value]"
+            "value": "[reference(concat('fetch-firefly-eu-ips-', parameters('newguid'))).outputs.fireflyIps.value]"
           },
           "location": {
             "value": "[parameters('location')]"
@@ -592,10 +592,10 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Insights/diagnosticSettings",
       "apiVersion": "2021-05-01-preview",
-      "name": "[concat('firefly-eumg-diagnostics-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-mg-diagnostics-', parameters('newguid'))]",
       "scope": "[concat('/providers/Microsoft.Management/managementGroups/', parameters('managementGroupId'))]",
       "dependsOn": [
-        "[concat('firefly-euresources-', parameters('newguid'))]"
+        "[concat('firefly-eu-resources-', parameters('newguid'))]"
       ],
       "properties": {
         "storageAccountId": "[concat('/subscriptions/', parameters('subscriptionIdForDeployment'), '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/firefly', uniqueString(parameters('subscriptionIdForDeployment')))]",
@@ -615,11 +615,11 @@
       "condition": "[parameters('eventDrivenEnabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-eumg-diagnostics-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-mg-diagnostics-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
-        "[concat('firefly-euresources-', parameters('newguid'))]"
+        "[concat('firefly-eu-resources-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -656,7 +656,7 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-eumg-diagnostics-script-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-mg-diagnostics-script-', parameters('newguid'))]",
               "location": "[resourceGroup().location]",
               "kind": "AzurePowerShell",
               "properties": {
@@ -690,7 +690,7 @@
                     "value": "[tenant().tenantId]"
                   }
                 ],
-                "scriptContent": "# Authenticate with Azure\nWrite-Host \"Authenticating with Azure...\"\ntry {\n    $securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n    $credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\n    $azContext = Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID\n    Write-Host \"Successfully authenticated with Azure. Tenant: $($azContext.Context.Tenant.Id)\"\n} catch {\n    Write-Error \"Azure authentication failed: $($_.Exception.Message)\"\n    exit 1\n}\n\n# Get all subscriptions under the management group and create diagnostic settings\nWrite-Host \"Setting up diagnostic settings for all subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    # Get all subscriptions under the management group\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    \n    function Get-SubscriptionIds($node) {\n        $subscriptionIds = @()\n        if ($node.Children) {\n            foreach ($child in $node.Children) {\n                if ($child.Type -eq '/subscriptions') {\n                    $subscriptionIds += $child.Name\n                } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                    $subscriptionIds += Get-SubscriptionIds $child\n                }\n            }\n        }\n        return $subscriptionIds\n    }\n    \n    $allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\n    Write-Host \"Found $($allSubscriptionIds.Count) subscriptions to configure\"\n    \n    $successCount = 0\n    $failedSubscriptions = @()\n    \n    foreach ($subId in $allSubscriptionIds) {\n        try {\n            Write-Host \"Setting up diagnostic settings for subscription: $subId\"\n            \n            # Switch to the subscription context\n            Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null\n            \n            # Check if diagnostic setting already exists\n            $existingDiagnostics = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n            $diagnosticName = \"firefly-eumg-diagnostics-$subId\"\n            \n            if ($existingDiagnostics | Where-Object { $_.Name -eq $diagnosticName }) {\n                Write-Host \"Diagnostic setting already exists for subscription $subId, updating...\"\n            } else {\n                Write-Host \"Creating new diagnostic setting for subscription $subId\"\n            }\n            \n            # Create/Update diagnostic setting for subscription activity logs\n            $logCategories = @(\n                @{ Category = 'Administrative'; Enabled = $true }\n                @{ Category = 'Security'; Enabled = $true }\n                @{ Category = 'ServiceHealth'; Enabled = $true }\n                @{ Category = 'Alert'; Enabled = $true }\n                @{ Category = 'Recommendation'; Enabled = $true }\n                @{ Category = 'Policy'; Enabled = $true }\n                @{ Category = 'Autoscale'; Enabled = $true }\n                @{ Category = 'ResourceHealth'; Enabled = $true }\n            )\n            \n            $diagnosticSetting = Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -Name $diagnosticName -StorageAccountId $Env:STORAGE_ACCOUNT_ID -Log $logCategories -Enabled $true\n            \n            if ($diagnosticSetting) {\n                Write-Host \"✓ Successfully configured diagnostic settings for subscription $subId\"\n                $successCount++\n            } else {\n                Write-Warning \"Failed to configure diagnostic settings for subscription $subId\"\n                $failedSubscriptions += $subId\n            }\n            \n        } catch {\n            Write-Warning \"Error configuring diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n            $failedSubscriptions += $subId\n        }\n    }\n    \n    Write-Host \"`n=== DIAGNOSTIC SETTINGS SUMMARY ===\"\n    Write-Host \"Total subscriptions: $($allSubscriptionIds.Count)\"\n    Write-Host \"Successfully configured: $successCount\"\n    Write-Host \"Failed: $($failedSubscriptions.Count)\"\n    \n    if ($failedSubscriptions.Count -gt 0) {\n        Write-Host \"Failed subscriptions: $($failedSubscriptions -join ', ')\"\n    }\n    \n} catch {\n    Write-Error \"Failed to configure diagnostic settings: $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
+                "scriptContent": "# Authenticate with Azure\nWrite-Host \"Authenticating with Azure...\"\ntry {\n    $securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n    $credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\n    $azContext = Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID\n    Write-Host \"Successfully authenticated with Azure. Tenant: $($azContext.Context.Tenant.Id)\"\n} catch {\n    Write-Error \"Azure authentication failed: $($_.Exception.Message)\"\n    exit 1\n}\n\n# Get all subscriptions under the management group and create diagnostic settings\nWrite-Host \"Setting up diagnostic settings for all subscriptions under management group: $Env:MANAGEMENT_GROUP_ID\"\n\ntry {\n    # Get all subscriptions under the management group\n    $mgHierarchy = Get-AzManagementGroup -GroupName $Env:MANAGEMENT_GROUP_ID -Expand -Recurse -ErrorAction Stop\n    \n    function Get-SubscriptionIds($node) {\n        $subscriptionIds = @()\n        if ($node.Children) {\n            foreach ($child in $node.Children) {\n                if ($child.Type -eq '/subscriptions') {\n                    $subscriptionIds += $child.Name\n                } elseif ($child.Type -eq '/providers/Microsoft.Management/managementGroups') {\n                    $subscriptionIds += Get-SubscriptionIds $child\n                }\n            }\n        }\n        return $subscriptionIds\n    }\n    \n    $allSubscriptionIds = Get-SubscriptionIds $mgHierarchy\n    Write-Host \"Found $($allSubscriptionIds.Count) subscriptions to configure\"\n    \n    $successCount = 0\n    $failedSubscriptions = @()\n    \n    foreach ($subId in $allSubscriptionIds) {\n        try {\n            Write-Host \"Setting up diagnostic settings for subscription: $subId\"\n            \n            # Switch to the subscription context\n            Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null\n            \n            # Check if diagnostic setting already exists\n            $existingDiagnostics = Get-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -ErrorAction SilentlyContinue\n            $diagnosticName = \"firefly-eu-mg-diagnostics-$subId\"\n            \n            if ($existingDiagnostics | Where-Object { $_.Name -eq $diagnosticName }) {\n                Write-Host \"Diagnostic setting already exists for subscription $subId, updating...\"\n            } else {\n                Write-Host \"Creating new diagnostic setting for subscription $subId\"\n            }\n            \n            # Create/Update diagnostic setting for subscription activity logs\n            $logCategories = @(\n                @{ Category = 'Administrative'; Enabled = $true }\n                @{ Category = 'Security'; Enabled = $true }\n                @{ Category = 'ServiceHealth'; Enabled = $true }\n                @{ Category = 'Alert'; Enabled = $true }\n                @{ Category = 'Recommendation'; Enabled = $true }\n                @{ Category = 'Policy'; Enabled = $true }\n                @{ Category = 'Autoscale'; Enabled = $true }\n                @{ Category = 'ResourceHealth'; Enabled = $true }\n            )\n            \n            $diagnosticSetting = Set-AzDiagnosticSetting -ResourceId \"/subscriptions/$subId\" -Name $diagnosticName -StorageAccountId $Env:STORAGE_ACCOUNT_ID -Log $logCategories -Enabled $true\n            \n            if ($diagnosticSetting) {\n                Write-Host \"✓ Successfully configured diagnostic settings for subscription $subId\"\n                $successCount++\n            } else {\n                Write-Warning \"Failed to configure diagnostic settings for subscription $subId\"\n                $failedSubscriptions += $subId\n            }\n            \n        } catch {\n            Write-Warning \"Error configuring diagnostic settings for subscription $subId : $($_.Exception.Message)\"\n            $failedSubscriptions += $subId\n        }\n    }\n    \n    Write-Host \"`n=== DIAGNOSTIC SETTINGS SUMMARY ===\"\n    Write-Host \"Total subscriptions: $($allSubscriptionIds.Count)\"\n    Write-Host \"Successfully configured: $successCount\"\n    Write-Host \"Failed: $($failedSubscriptions.Count)\"\n    \n    if ($failedSubscriptions.Count -gt 0) {\n        Write-Host \"Failed subscriptions: $($failedSubscriptions -join ', ')\"\n    }\n    \n} catch {\n    Write-Error \"Failed to configure diagnostic settings: $($_.Exception.Message)\"\n    exit 1\n}\n\nWrite-Host \"Diagnostic settings configuration completed\""
               }
             }
           ]
@@ -723,12 +723,12 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-euintegration-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-integration-', parameters('newguid'))]",
       "subscriptionId": "[parameters('subscriptionIdForDeployment')]",
       "resourceGroup": "[variables('resourceGroupName')]",
       "dependsOn": [
-        "[concat('firefly-euresource-group-', parameters('newguid'))]",
-        "[concat('firefly-euroles-', parameters('newguid'))]"
+        "[concat('firefly-eu-resource-group-', parameters('newguid'))]",
+        "[concat('firefly-eu-roles-', parameters('newguid'))]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -777,7 +777,7 @@
             {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2020-10-01",
-              "name": "[concat('firefly-euintegration-script-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-integration-script-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "kind": "AzurePowerShell",
               "properties": {

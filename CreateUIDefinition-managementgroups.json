@@ -99,7 +99,7 @@
         "visible": "[equals(basics('resourceGroupOption'), 'new')]",
         "options": {
           "icon": "Info",
-          "text": "A new resource group will be created with the name 'firefly-eumonitoring-mg-{management-group-id}'. This resource group will contain the deployment scripts and any event-driven monitoring resources if enabled."
+          "text": "A new resource group will be created with the name 'firefly-eu-monitoring-mg-{management-group-id}'. This resource group will contain the deployment scripts and any event-driven monitoring resources if enabled."
         }
       },
       {
@@ -231,7 +231,7 @@
                 "visible": true,
                 "options": {
                   "icon": "Info",
-                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'firefly-euIntegration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader\n• Monitoring Reader\n\nAdditionally, custom roles will be created in the deployment subscription for accessing storage accounts and other Azure services."
+                  "text": "The following steps involve creating or selecting a service principal for Firefly to access your Azure subscriptions. Please read them carefully before continuing.\n\n1. Select the option to create a new app registration, and click 'Change Selection'.\n2. Give it a name (e.g., 'firefly-eu-Integration-MG') and select any account type.\n3. Click 'Register'. This will open a new page to create a client secret.\n4. Click '+ New Client Secret' to add a Client Secret.\n5. Copy the Value of the Client Secret.\n6. Click the close (X) button in the top-right corner to return to this template screen.\n7. Paste the value of the Client Secret in the corresponding field on this template.\n\nAfter deployment, this service principal will be granted the following permissions on the selected management group:\n• Reader\n• Billing Reader\n• App Configuration Data Reader\n• Security Reader\n• Monitoring Reader\n\nAdditionally, custom roles will be created in the deployment subscription for accessing storage accounts and other Azure services."
                 }
               },
               {

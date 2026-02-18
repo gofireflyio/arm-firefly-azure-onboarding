@@ -139,7 +139,7 @@
     {
       "type": "Microsoft.Resources/resourceGroups",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-eumonitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
+      "name": "[concat('firefly-eu-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
       "location": "[parameters('location')]",
       "tags": "[variables('mergedTags')]",
       "properties": {},
@@ -151,11 +151,11 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2021-04-01",
-      "name": "[concat('firefly-eudeployment-', copyIndex(), '-', parameters('newguid'))]",
+      "name": "[concat('firefly-eu-deployment-', copyIndex(), '-', parameters('newguid'))]",
       "location": "[parameters('location')]",
       "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
       "dependsOn": [
-        "[concat('firefly-eumonitoring-', variables('effectiveSubscriptions')[copyIndex()])]"
+        "[concat('firefly-eu-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]"
       ],
       "copy": {
         "name": "deploymentLoop",
@@ -174,10 +174,10 @@
             "value": "[concat('firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
           },
           "uniqueEventGridTopicName": {
-            "value": "[concat('firefly-euevents-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]"
+            "value": "[concat('firefly-eu-events-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]"
           },
           "uniqueCustomRoleName": {
-            "value": "[concat('firefly-eu', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
+            "value": "[concat('firefly-eu-', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
           },
           "targetSubscriptionId": {
             "value": "[variables('effectiveSubscriptions')[copyIndex()]]"
@@ -282,7 +282,7 @@
             }
           },
           "variables": {
-            "resourceGroupName": "[concat('firefly-eumonitoring-', parameters('targetSubscriptionId'))]"
+            "resourceGroupName": "[concat('firefly-eu-monitoring-', parameters('targetSubscriptionId'))]"
           },
           "resources": [
             {
@@ -296,7 +296,7 @@
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-euroles-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-roles-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "subscriptionId": "[parameters('targetSubscriptionId')]",
               "properties": {
@@ -378,7 +378,7 @@
                       "apiVersion": "2022-04-01",
                       "name": "[guid('fireflyStorageBlobReader', subscription().subscriptionId)]",
                       "properties": {
-                        "roleName": "[concat('firefly-euStorageBlobReader-', uniqueString(subscription().subscriptionId))]",
+                        "roleName": "[concat('firefly-eu-StorageBlobReader-', uniqueString(subscription().subscriptionId))]",
                         "description": "Firefly's storage blob read permissions",
                         "type": "customRole",
                         "permissions": [
@@ -468,7 +468,7 @@
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('fetch-firefly-euips-', parameters('newguid'))]",
+              "name": "[concat('fetch-firefly-eu-ips-', parameters('newguid'))]",
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
                 "[variables('resourceGroupName')]"
@@ -542,12 +542,12 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-euresources-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-resources-', parameters('newguid'))]",
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
                 "[variables('resourceGroupName')]",
-                "[concat('firefly-euroles-', parameters('newguid'))]",
-                "[concat('fetch-firefly-euips-', parameters('newguid'))]"
+                "[concat('firefly-eu-roles-', parameters('newguid'))]",
+                "[concat('fetch-firefly-eu-ips-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -574,7 +574,7 @@
                     "value": "[parameters('enforceStorageNetworkRules')]"
                   },
                   "fireflyEips": {
-                    "value": "[reference(concat('fetch-firefly-euips-', parameters('newguid'))).outputs.fireflyIps.value]"
+                    "value": "[reference(concat('fetch-firefly-eu-ips-', parameters('newguid'))).outputs.fireflyIps.value]"
                   },
                   "location": {
                     "value": "[parameters('location')]"
@@ -660,7 +660,7 @@
                       "location": "[parameters('location')]",
                       "tags": "[parameters('mergedTags')]",
                       "properties": {
-                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/firefly-eumonitoring-', parameters('targetSubscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
+                        "source": "[concat('/subscriptions/', parameters('targetSubscriptionId'), '/resourceGroups/firefly-eu-monitoring-', parameters('targetSubscriptionId'), '/providers/Microsoft.Storage/storageAccounts/', parameters('uniqueStorageAccountName'))]",
                         "topicType": "microsoft.storage.storageaccounts"
                       },
                       "dependsOn": [
@@ -670,7 +670,7 @@
                     {
                       "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
                       "apiVersion": "2021-12-01",
-                      "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-euwebhook')]",
+                      "name": "[concat(parameters('uniqueEventGridTopicName'), '/firefly-eu-webhook')]",
                       "dependsOn": [
                         "[parameters('uniqueEventGridTopicName')]"
                       ],
@@ -703,11 +703,11 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-eustorage-roles-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-storage-roles-', parameters('newguid'))]",
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
-                "[concat('firefly-euresources-', parameters('newguid'))]",
-                "[concat('firefly-euroles-', parameters('newguid'))]"
+                "[concat('firefly-eu-resources-', parameters('newguid'))]",
+                "[concat('firefly-eu-roles-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -773,11 +773,11 @@
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-euintegration-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-integration-', parameters('newguid'))]",
               "resourceGroup": "[variables('resourceGroupName')]",
               "dependsOn": [
                 "[variables('resourceGroupName')]",
-                "[concat('firefly-euroles-', parameters('newguid'))]"
+                "[concat('firefly-eu-roles-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -853,7 +853,7 @@
                     {
                       "type": "Microsoft.Resources/deploymentScripts",
                       "apiVersion": "2020-10-01",
-                      "name": "[concat('firefly-euintegration-script-', parameters('newguid'))]",
+                      "name": "[concat('firefly-eu-integration-script-', parameters('newguid'))]",
                       "location": "[parameters('location')]",
                       "kind": "AzurePowerShell",
                       "properties": {
@@ -915,11 +915,11 @@
               "condition": "[parameters('eventDrivenEnabled')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2021-04-01",
-              "name": "[concat('firefly-eudiag-settings-', parameters('newguid'))]",
+              "name": "[concat('firefly-eu-diag-settings-', parameters('newguid'))]",
               "location": "[parameters('location')]",
               "subscriptionId": "[parameters('targetSubscriptionId')]",
               "dependsOn": [
-                "[concat('firefly-euresources-', parameters('newguid'))]"
+                "[concat('firefly-eu-resources-', parameters('newguid'))]"
               ],
               "properties": {
                 "mode": "Incremental",
@@ -944,7 +944,7 @@
                     {
                       "type": "Microsoft.Insights/diagnosticSettings",
                       "apiVersion": "2021-05-01-preview",
-                      "name": "[concat('firefly-eudiag-', subscription().subscriptionId)]",
+                      "name": "[concat('firefly-eu-diag-', subscription().subscriptionId)]",
                       "properties": {
                         "storageAccountId": "[parameters('storageAccountId')]",
                         "logs": [
@@ -1002,8 +1002,8 @@
         "count": "[length(variables('effectiveSubscriptions'))]",
         "input": {
           "subscriptionId": "[variables('effectiveSubscriptions')[copyIndex()]]",
-          "resourceGroup": "[concat('firefly-eumonitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
-          "deploymentName": "[concat('firefly-eudeployment-', copyIndex(), '-', parameters('newguid'))]",
+          "resourceGroup": "[concat('firefly-eu-monitoring-', variables('effectiveSubscriptions')[copyIndex()])]",
+          "deploymentName": "[concat('firefly-eu-deployment-', copyIndex(), '-', parameters('newguid'))]",
           "status": "Deployed"
         }
       }
