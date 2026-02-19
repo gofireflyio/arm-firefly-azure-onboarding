@@ -171,7 +171,7 @@
             "value": "[variables('mergedTags')]"
           },
           "uniqueStorageAccountName": {
-            "value": "[concat('firefly', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
+            "value": "[concat('fireflyeu', uniqueString(variables('effectiveSubscriptions')[copyIndex()]))]"
           },
           "uniqueEventGridTopicName": {
             "value": "[concat('firefly-eu-events-', substring(variables('effectiveSubscriptions')[copyIndex()], 0, 8), '-', parameters('newguid'))]"
