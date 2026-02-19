@@ -399,7 +399,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2022-04-01",
-                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReaderConditional', subscription().subscriptionId, parameters('newguid'))]",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReaderConditionalEu', subscription().subscriptionId)]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
                         "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -411,7 +411,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-10-01-preview",
-                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly-eu reader', parameters('servicePrincipalObjectId'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
                         "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -421,7 +421,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-10-01-preview",
-                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly billing reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly-eu billing reader', parameters('servicePrincipalObjectId'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64')]",
                         "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -431,7 +431,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-10-01-preview",
-                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly app config reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly-eu app config reader', parameters('servicePrincipalObjectId'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '516239f1-63e1-4d78-a4de-a74fb236a071')]",
                         "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -441,7 +441,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-10-01-preview",
-                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly security reader', parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "name": "[guid(concat('/subscriptions/', subscription().subscriptionId), 'firefly-eu security reader', parameters('servicePrincipalObjectId'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '39bc4728-0917-49c7-9d2c-d95423bc2eb4')]",
                         "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -451,7 +451,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-10-01-preview",
-                      "name": "[guid('firefly custom role deployment subscription', subscription().subscriptionId, parameters('servicePrincipalObjectId'), parameters('newguid'))]",
+                      "name": "[guid('firefly-eu custom role deployment subscription', subscription().subscriptionId, parameters('servicePrincipalObjectId'))]",
                       "properties": {
 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyCustomRoleEu', subscription().subscriptionId))]",
                          "principalId": "[parameters('servicePrincipalObjectId')]",
@@ -747,7 +747,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2022-04-01",
-                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReader', parameters('uniqueStorageAccountName'), parameters('newguid'))]",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'StorageBlobDataReaderEu', parameters('uniqueStorageAccountName'))]",
                       "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
@@ -758,7 +758,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2022-04-01",
-                      "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReader', parameters('uniqueStorageAccountName'), parameters('newguid'))]",
+                      "name": "[guid(parameters('servicePrincipalObjectId'), 'FireflyStorageBlobReaderEu', parameters('uniqueStorageAccountName'))]",
                       "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('uniqueStorageAccountName'))]",
                       "properties": {
                         "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', guid('fireflyStorageBlobReaderEu', subscription().subscriptionId))]",
