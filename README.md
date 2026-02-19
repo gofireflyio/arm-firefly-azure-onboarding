@@ -360,7 +360,7 @@ az role definition list --name "Owner"
 
 #### **Integration Creation Failed**
 - ✅ Verify Firefly credentials are correct
-- ✅ Check network connectivity to `https://prodapi.firefly.ai`
+- ✅ Check network connectivity to `https://prodapi.eu.firefly.ai`
 - ✅ Ensure service principal has required permissions
 - ✅ Validate subscription ID format
 
