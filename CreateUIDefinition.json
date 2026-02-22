@@ -20,6 +20,27 @@
         "label": "Integration Configuration",
         "elements": [
           {
+            "name": "fireflySite",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Firefly Site",
+            "defaultValue": "US",
+            "toolTip": "The Firefly site for your organization. Choose EU if your Firefly account is hosted in the European region.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "US",
+                  "value": "firefly.ai"
+                },
+                {
+                  "label": "EU",
+                  "value": "eu.firefly.ai"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
             "name": "directoryDomain",
             "type": "Microsoft.Common.TextBox",
             "label": "Directory Domain",
@@ -218,6 +239,7 @@
       "servicePrincipalClientSecret": "[steps('servicePrincipal').createAppReg.ServicePrincipal.password]",
       "fireflyAccessKey": "[steps('fireflyCredentials').ffAccessKey]",
       "fireflySecretKey": "[steps('fireflyCredentials').ffSecretKey]",
+      "fireflySite": "[steps('integrationConfig').fireflySite]",
       "directoryDomain": "[steps('integrationConfig').directoryDomain]",
       "isProd": "[steps('integrationConfig').isProd]",
       "targetSubscriptions": "[steps('integrationConfig').targetSubscriptions]",
