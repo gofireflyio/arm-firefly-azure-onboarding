@@ -37,6 +37,12 @@
       "defaultValue": true,
       "metadata": { "description": "Whether this is a multi-subscription deployment" }
     },
+    "fireflySite": {
+      "type": "string",
+      "defaultValue": "firefly.ai",
+      "allowedValues": ["firefly.ai", "eu.firefly.ai"],
+      "metadata": { "description": "Firefly site domain (firefly.ai or eu.firefly.ai)" }
+    },
     "eventDrivenEnabled": {
       "type": "bool",
       "defaultValue": true,
@@ -44,8 +50,8 @@
     },
     "fireflyWebhookUrl": {
       "type": "string",
-      "defaultValue": "https://azure-events.firefly.ai",
-      "metadata": { "description": "Firefly webhook URL for event notifications" }
+      "defaultValue": "",
+      "metadata": { "description": "Firefly webhook URL for event notifications. If empty, derived from fireflySite." }
     },
     "enforceStorageNetworkRules": {
       "type": "bool",
@@ -101,7 +107,10 @@
       "firefly": "true"
     },
     "mergedTags": "[union(variables('defaultTags'), variables('customTagsObject'))]",
-    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]"
+    "effectiveSubscriptions": "[if(parameters('isMultiSubscription'), parameters('targetSubscriptions'), createArray(subscription().subscriptionId))]",
+    "effectiveWebhookUrl": "[if(not(empty(parameters('fireflyWebhookUrl'))), parameters('fireflyWebhookUrl'), concat('https://azure-events.', parameters('fireflySite')))]",
+    "fireflyProdApiBase": "[concat('https://prodapi.', parameters('fireflySite'))]",
+    "fireflyApiBase": "[concat('https://api.', parameters('fireflySite'))]"
   },
   "resources": [
     {
@@ -146,8 +155,10 @@
           "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
           "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
           "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
-          "fireflyWebhookUrl": { "value": "[parameters('fireflyWebhookUrl')]" },
+          "fireflyWebhookUrl": { "value": "[variables('effectiveWebhookUrl')]" },
           "enforceStorageNetworkRules": { "value": "[parameters('enforceStorageNetworkRules')]" },
+          "fireflyProdApiBase": { "value": "[variables('fireflyProdApiBase')]" },
+          "fireflyApiBase": { "value": "[variables('fireflyApiBase')]" },
           "fireflyEips": { "value": "[parameters('fireflyEips')]" },
           "isProd": { "value": "[parameters('isProd')]" },
           "newguid": { "value": "[parameters('newguid')]" },
@@ -172,6 +183,8 @@
             "fireflyWebhookUrl": { "type": "string" },
             "enforceStorageNetworkRules": { "type": "bool" },
             "fireflyEips": { "type": "array" },
+            "fireflyProdApiBase": { "type": "string" },
+            "fireflyApiBase": { "type": "string" },
             "isProd": { "type": "bool" },
             "newguid": { "type": "string" },
             "directoryDomain": { "type": "string" },
@@ -367,38 +380,41 @@
                   "scope": "inner"
                 },
                 "parameters": {
-                  "location": { "value": "[parameters('location')]" },
-                  "fireflyEips": { "value": "[parameters('fireflyEips')]" },
-                  "newguid": { "value": "[parameters('newguid')]" }
-                },
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {
-                    "location": { "type": "string" },
-                    "fireflyEips": { "type": "array" },
-                    "newguid": { "type": "string" }
-                  },
-                  "variables": {
-                    "fallbackIps": "[string(parameters('fireflyEips'))]"
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[concat('fetch-ips-script-', parameters('newguid'))]",
-                      "location": "[parameters('location')]",
-                      "kind": "AzurePowerShell",
-                      "properties": {
-                        "retentionInterval": "PT1H",
-                        "timeout": "PT5M",
-                        "containerSettings": {},
-                        "cleanupPreference": "Always",
-                        "azPowerShellVersion": "8.1",
-                        "environmentVariables": [
-                          { "name": "FALLBACK_IPS", "value": "[variables('fallbackIps')]" }
-                        ],
-                        "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri 'https://api.firefly.ai/v2/infrastructure/public-nat-ips' `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\""
+                   "location": { "value": "[parameters('location')]" },
+                   "fireflyEips": { "value": "[parameters('fireflyEips')]" },
+                   "fireflyApiBase": { "value": "[parameters('fireflyApiBase')]" },
+                   "newguid": { "value": "[parameters('newguid')]" }
+                 },
+                 "template": {
+                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                   "contentVersion": "1.0.0.0",
+                   "parameters": {
+                     "location": { "type": "string" },
+                     "fireflyEips": { "type": "array" },
+                     "fireflyApiBase": { "type": "string" },
+                     "newguid": { "type": "string" }
+                   },
+                   "variables": {
+                     "fallbackIps": "[string(parameters('fireflyEips'))]"
+                   },
+                   "resources": [
+                     {
+                       "type": "Microsoft.Resources/deploymentScripts",
+                       "apiVersion": "2020-10-01",
+                       "name": "[concat('fetch-ips-script-', parameters('newguid'))]",
+                       "location": "[parameters('location')]",
+                       "kind": "AzurePowerShell",
+                       "properties": {
+                         "retentionInterval": "PT1H",
+                         "timeout": "PT5M",
+                         "containerSettings": {},
+                         "cleanupPreference": "Always",
+                         "azPowerShellVersion": "8.1",
+                         "environmentVariables": [
+                           { "name": "FALLBACK_IPS", "value": "[variables('fallbackIps')]" },
+                           { "name": "FIREFLY_API_BASE", "value": "[parameters('fireflyApiBase')]" }
+                         ],
+                         "scriptContent": "$ErrorActionPreference = 'Stop'\n\ntry {\n    Write-Host 'Fetching Firefly IPs from API...'\n\n    $response = Invoke-RestMethod `\n        -Uri \"$($Env:FIREFLY_API_BASE)/v2/infrastructure/public-nat-ips\" `\n        -Method Get `\n        -TimeoutSec 30\n\n    if ($response -and $response.ips -and $response.ips.Count -gt 0) {\n        Write-Host \"Successfully fetched $($response.ips.Count) IPs from API\"\n        $ipsArray = $response.ips\n    }\n    else {\n        Write-Warning 'API response was empty or invalid, using fallback IPs'\n        $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n    }\n}\ncatch {\n    Write-Warning \"Failed to fetch IPs from API: $($_.Exception.Message)\"\n    Write-Host 'Using fallback IPs'\n    $ipsArray = $Env:FALLBACK_IPS | ConvertFrom-Json\n}\n\n$DeploymentScriptOutputs = @{}\n$DeploymentScriptOutputs['ips'] = $ipsArray\n\nWrite-Host \"Output IPs: $($ipsArray -join ', ')\""
                       }
                     }
                   ],
@@ -597,10 +613,12 @@
                   "fireflyAccessKey": { "value": "[parameters('fireflyAccessKey')]" },
                   "fireflySecretKey": { "value": "[parameters('fireflySecretKey')]" },
                   "isProd": { "value": "[parameters('isProd')]" },
-                  "directoryDomain": { "value": "[parameters('directoryDomain')]" },
-                  "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
-                  "newguid": { "value": "[parameters('newguid')]" },
-                  "location": { "value": "[parameters('location')]" }
+                   "directoryDomain": { "value": "[parameters('directoryDomain')]" },
+                   "eventDrivenEnabled": { "value": "[parameters('eventDrivenEnabled')]" },
+                   "fireflyProdApiBase": { "value": "[parameters('fireflyProdApiBase')]" },
+                   "fireflyApiBase": { "value": "[parameters('fireflyApiBase')]" },
+                   "newguid": { "value": "[parameters('newguid')]" },
+                   "location": { "value": "[parameters('location')]" }
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -614,6 +632,8 @@
                     "isProd": { "type": "bool" },
                     "directoryDomain": { "type": "string" },
                     "eventDrivenEnabled": { "type": "bool" },
+                    "fireflyProdApiBase": { "type": "string" },
+                    "fireflyApiBase": { "type": "string" },
                     "newguid": { "type": "string" },
                     "location": { "type": "string" }
                   },
@@ -641,9 +661,11 @@
                           { "name": "IS_PROD", "value": "[parameters('isProd')]" },
                           { "name": "IS_EVENT_DRIVEN", "value": "[parameters('eventDrivenEnabled')]" },
                           { "name": "IS_AUTO_DISCOVER", "value": "true" },
-                          { "name": "DIRECTORY_DOMAIN", "value": "[parameters('directoryDomain')]" }
+                          { "name": "DIRECTORY_DOMAIN", "value": "[parameters('directoryDomain')]" },
+                          { "name": "FIREFLY_PROD_API_BASE", "value": "[parameters('fireflyProdApiBase')]" },
+                          { "name": "FIREFLY_API_BASE", "value": "[parameters('fireflyApiBase')]" }
                         ],
-                        "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri 'https://prodapi.firefly.ai/api/account/access_keys/login' -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n# Get subscription details\ntry {\n    $subscription = Get-AzSubscription -SubscriptionId $Env:SUBSCRIPTION_ID -ErrorAction Stop\n    $subscriptionDisplayName = $subscription.Name\n} catch {\n    Write-Warning \"Could not retrieve subscription details for $Env:SUBSCRIPTION_ID. Using ID as name.\"\n    $subscriptionDisplayName = $Env:SUBSCRIPTION_ID\n}\n\nWrite-Host \"Creating integration for subscription: $subscriptionDisplayName ($Env:SUBSCRIPTION_ID)\"\n\n$bodyObj = [ordered]@{\n    subscriptionId = $Env:SUBSCRIPTION_ID\n    tenantId = $Env:TENANT_ID\n    applicationId = $Env:CLIENT_ID\n    clientSecret = $Env:CLIENT_SECRET\n    name = $subscriptionDisplayName\n    directoryDomain = $Env:DIRECTORY_DOMAIN\n    isProd = [bool]::Parse($Env:IS_PROD)\n    isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN)\n    isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n    isIacAutoDiscoveryDisabled = $false\n}\n\n$body = $bodyObj | ConvertTo-Json -Compress\n\ntry {\n    $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri 'https://prodapi.firefly.ai/api/integrations/azure?onConflictUpdate=true' -Headers $headers -Body $body\n    \n    if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n        Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n    } else {\n        Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n        exit 1\n    }\n} catch {\n    Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n    \n    if ($_.ErrorDetails.Message) {\n        Write-Host \"Response body: $($_.ErrorDetails.Message)\"\n    }\n    \n    exit 1\n}\n\nWrite-Host \"Integration process completed successfully\""
+                        "scriptContent": "# Authenticate with Firefly\n$tokenResp = (Invoke-WebRequest -SkipCertificateCheck -ContentType 'application/json' -Method Post -Uri \"$($Env:FIREFLY_PROD_API_BASE)/api/account/access_keys/login\" -Body (@{accessKey=$Env:FIREFLY_ACCESS_KEY;secretKey=$Env:FIREFLY_SECRET_KEY}|ConvertTo-Json)).Content | ConvertFrom-Json\n$jwt = $tokenResp.access_token\nif (-not $jwt) {\n    Write-Error 'Auth failed'\n    exit 1\n}\n\n# Login to Azure\n$securePassword = ConvertTo-SecureString $Env:CLIENT_SECRET -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential($Env:CLIENT_ID, $securePassword)\nConnect-AzAccount -ServicePrincipal -Credential $credential -Tenant $Env:TENANT_ID | Out-Null\n\n$headers = @{\n    'Authorization' = \"Bearer $jwt\"\n    'Content-Type' = 'application/json'\n}\n\n# Get subscription details\ntry {\n    $subscription = Get-AzSubscription -SubscriptionId $Env:SUBSCRIPTION_ID -ErrorAction Stop\n    $subscriptionDisplayName = $subscription.Name\n} catch {\n    Write-Warning \"Could not retrieve subscription details for $Env:SUBSCRIPTION_ID. Using ID as name.\"\n    $subscriptionDisplayName = $Env:SUBSCRIPTION_ID\n}\n\nWrite-Host \"Creating integration for subscription: $subscriptionDisplayName ($Env:SUBSCRIPTION_ID)\"\n\n$bodyObj = [ordered]@{\n    subscriptionId = $Env:SUBSCRIPTION_ID\n    tenantId = $Env:TENANT_ID\n    applicationId = $Env:CLIENT_ID\n    clientSecret = $Env:CLIENT_SECRET\n    name = $subscriptionDisplayName\n    directoryDomain = $Env:DIRECTORY_DOMAIN\n    isProd = [bool]::Parse($Env:IS_PROD)\n    isEventDriven = [bool]::Parse($Env:IS_EVENT_DRIVEN)\n    isAutoDiscover = [bool]::Parse($Env:IS_AUTO_DISCOVER)\n    isIacAutoDiscoveryDisabled = $false\n}\n\n$body = $bodyObj | ConvertTo-Json -Compress\n\ntry {\n    $intResp = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Method Post -Uri \"$($Env:FIREFLY_PROD_API_BASE)/api/integrations/azure?onConflictUpdate=true\" -Headers $headers -Body $body\n    \n    if ($intResp.StatusCode -eq 200 -or $intResp.StatusCode -eq 201) {\n        Write-Host \"Successfully created integration for subscription $subscriptionDisplayName\"\n    } else {\n        Write-Warning \"Unexpected status code $($intResp.StatusCode) for subscription $subscriptionDisplayName\"\n        exit 1\n    }\n} catch {\n    Write-Warning \"Failed to create integration for subscription $subscriptionDisplayName : $($_.Exception.Message)\"\n    \n    if ($_.ErrorDetails.Message) {\n        Write-Host \"Response body: $($_.ErrorDetails.Message)\"\n    }\n    \n    exit 1\n}\n\nWrite-Host \"Integration process completed successfully\""
                       }
                     }
                   ]
