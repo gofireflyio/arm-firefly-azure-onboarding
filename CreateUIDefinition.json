@@ -127,7 +127,7 @@
             "placeholder": "Select subscriptions to monitor",
             "toolTip": "Select the subscriptions where you want to deploy Firefly monitoring infrastructure. Multi-subscription deployment will create the same monitoring infrastructure (storage account, event grid, diagnostic settings) in each selected subscription.",
             "constraints": {
-              "allowedValues": "[map(steps('integrationConfig').subscriptionApi.value, (item) => parse(concat('{\"label\":\"', item.displayName, ' (', item.subscriptionId, ')\",\"value\":\"', item.subscriptionId, '\"}')))]",
+              "allowedValues": "[map(steps('integrationConfig').subscriptionApi.value, (item) => createObject('label', concat(item.displayName, ' (', item.subscriptionId, ')'), 'value', item.subscriptionId))]",
               "required": true
             },
             "visible": true,
