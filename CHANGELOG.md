@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1](https://github.com/gofireflyio/arm-firefly-azure-onboarding/compare/v1.1.0...v1.1.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* SHA-pin all 3rd-party GitHub Actions (supply chain hardening) ([#19](https://github.com/gofireflyio/arm-firefly-azure-onboarding/issues/19)) ([9b460f2](https://github.com/gofireflyio/arm-firefly-azure-onboarding/commit/9b460f24077519eb852913ded076fbc22f819826))
+
 ## [1.1.0](https://github.com/gofireflyio/arm-firefly-azure-onboarding/compare/v1.0.1...v1.1.0) (2026-01-14)
 
 
