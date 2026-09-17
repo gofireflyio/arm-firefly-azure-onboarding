@@ -1,0 +1,197 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Onboards an Azure subscription to Firefly through Azure Lighthouse (delegated resource management). No service principal, app registration, or client secret is created in the customer tenant."
+  },
+  "parameters": {
+    "mspOfferName": {
+      "type": "string",
+      "defaultValue": "Firefly Cloud Asset Management",
+      "metadata": {
+        "description": "Offer title shown to the customer on the Azure portal 'Service providers' page. Must be unique per subscription - a second offer on the same scope requires a different name."
+      }
+    },
+    "mspOfferDescription": {
+      "type": "string",
+      "defaultValue": "Firefly cloud asset management, IaC drift detection, and FinOps. Read-only inventory access plus optional provisioning of the event-driven monitoring pipeline.",
+      "metadata": {
+        "description": "Description shown to the customer alongside the offer name."
+      }
+    },
+    "managedByTenantId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "metadata": {
+        "description": "Firefly's Microsoft Entra tenant ID. Must NOT equal the tenant ID of the subscription being onboarded."
+      }
+    },
+    "fireflyPrincipalId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "metadata": {
+        "description": "Object ID of the Firefly security group or service principal in the Firefly tenant that receives the delegated roles. A Security group is recommended so membership can change without redeploying."
+      }
+    },
+    "fireflyPrincipalDisplayName": {
+      "type": "string",
+      "defaultValue": "Firefly Integration",
+      "metadata": {
+        "description": "Friendly name shown to the customer next to each delegated role."
+      }
+    },
+    "enableProvisioningAccess": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Grant the write permissions Firefly needs to provision and maintain the event-driven monitoring pipeline (diagnostic settings, Event Grid system topic and subscription, event storage account). Set to false for an inventory-only, strictly read-only delegation."
+      }
+    },
+    "enableManagedIdentityRoleDelegation": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Grant User Access Administrator scoped exclusively to assigning the roles in delegatedRoleDefinitionIds to managed identities in this subscription. Required only for the in-tenant collector, which reads log blobs with its own managed identity so Firefly never needs a network path into the storage account. Azure Lighthouse blocks roles with DataActions, so this is the only supported way to grant Storage Blob Data Reader through a delegation."
+      }
+    },
+    "enableSelfServiceOffboarding": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Allow Firefly to remove its own registration assignment. When false, only a user in the customer tenant can revoke the delegation."
+      }
+    }
+  },
+  "variables": {
+    "roleReader": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "roleBillingReader": "fa23ad8b-c56e-40d8-ac0c-ce449e1d2c64",
+    "roleCostManagementReader": "72fafb9e-0641-4937-9268-a91bfd8191a3",
+    "roleSecurityReader": "39bc4728-0917-49c7-9d2c-d95423bc2eb4",
+    "roleMonitoringReader": "43d0d8ad-25c7-4714-9337-8ba259a9fe05",
+    "roleMonitoringContributor": "749f88d5-cbae-40b8-bcfc-e573ddc772fa",
+    "roleEventGridContributor": "1e241071-0855-49ea-94dc-649edcd759de",
+    "roleStorageAccountContributor": "17d1049b-9a84-46fb-8f53-869881c3d3ab",
+    "roleStorageBlobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "roleUaaForManagedIdentities": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+    "roleManagedServicesRegistrationDelete": "91c1777a-f3dc-4fae-b103-61d183457e46",
+
+    "baseAuthorizations": [
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Inventory Reader')]",
+        "roleDefinitionId": "[variables('roleReader')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Billing Reader')]",
+        "roleDefinitionId": "[variables('roleBillingReader')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Cost Management Reader')]",
+        "roleDefinitionId": "[variables('roleCostManagementReader')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Security Reader')]",
+        "roleDefinitionId": "[variables('roleSecurityReader')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Monitoring Reader')]",
+        "roleDefinitionId": "[variables('roleMonitoringReader')]"
+      }
+    ],
+
+    "provisioningAuthorizations": [
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Monitoring Contributor (diagnostic settings)')]",
+        "roleDefinitionId": "[variables('roleMonitoringContributor')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - EventGrid Contributor (system topic and subscription)')]",
+        "roleDefinitionId": "[variables('roleEventGridContributor')]"
+      },
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Storage Account Contributor (event storage account)')]",
+        "roleDefinitionId": "[variables('roleStorageAccountContributor')]"
+      }
+    ],
+
+    "identityDelegationAuthorizations": [
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Managed Identity Role Delegation')]",
+        "roleDefinitionId": "[variables('roleUaaForManagedIdentities')]",
+        "delegatedRoleDefinitionIds": [
+          "[variables('roleStorageBlobDataReader')]",
+          "[variables('roleReader')]"
+        ]
+      }
+    ],
+
+    "offboardingAuthorizations": [
+      {
+        "principalId": "[parameters('fireflyPrincipalId')]",
+        "principalIdDisplayName": "[concat(parameters('fireflyPrincipalDisplayName'), ' - Delegation Removal')]",
+        "roleDefinitionId": "[variables('roleManagedServicesRegistrationDelete')]"
+      }
+    ],
+
+    "authorizations": "[concat(variables('baseAuthorizations'), if(parameters('enableProvisioningAccess'), variables('provisioningAuthorizations'), json('[]')), if(parameters('enableManagedIdentityRoleDelegation'), variables('identityDelegationAuthorizations'), json('[]')), if(parameters('enableSelfServiceOffboarding'), variables('offboardingAuthorizations'), json('[]')))]",
+
+    "registrationName": "[guid(parameters('mspOfferName'), parameters('managedByTenantId'))]",
+    "assignmentName": "[guid(parameters('mspOfferName'), parameters('managedByTenantId'), subscription().subscriptionId)]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedServices/registrationDefinitions",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('registrationName')]",
+      "properties": {
+        "registrationDefinitionName": "[parameters('mspOfferName')]",
+        "description": "[parameters('mspOfferDescription')]",
+        "managedByTenantId": "[parameters('managedByTenantId')]",
+        "authorizations": "[variables('authorizations')]"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedServices/registrationAssignments",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('assignmentName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('registrationName'))]"
+      ],
+      "properties": {
+        "registrationDefinitionId": "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('registrationName'))]"
+      }
+    }
+  ],
+  "outputs": {
+    "mspOfferName": {
+      "type": "string",
+      "value": "[parameters('mspOfferName')]"
+    },
+    "delegatedSubscriptionId": {
+      "type": "string",
+      "value": "[subscription().subscriptionId]"
+    },
+    "managedByTenantId": {
+      "type": "string",
+      "value": "[parameters('managedByTenantId')]"
+    },
+    "registrationDefinitionId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('registrationName'))]"
+    },
+    "grantedRoleCount": {
+      "type": "int",
+      "value": "[length(variables('authorizations'))]"
+    }
+  }
+}
