@@ -154,6 +154,66 @@ Firefly is a comprehensive cloud asset management platform that helps organizati
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-managementgroups.json)
 
+### **Option 3: Azure Lighthouse Delegation** *(no service principal in your tenant)*
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflylighthouse.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-lighthouse.json)
+
+For organizations whose policy forbids creating app registrations, service principals, or long-lived client secrets. Azure Lighthouse is Azure's equivalent of an AWS cross-account IAM role: Firefly's principals stay in Firefly's tenant and receive scoped Azure RBAC on your subscription. **Nothing is created in your directory and no credential is exchanged.**
+
+```bash
+az deployment sub create \
+  --name firefly-lighthouse \
+  --location <AzureRegion> \
+  --template-file azurefireflylighthouse.json \
+  --parameters azurefireflylighthouse.parameters.json
+```
+
+**Delegated roles**
+
+| Role | Granted when | Purpose |
+|---|---|---|
+| Reader | always | Resource inventory; required for portal visibility |
+| Billing Reader / Cost Management Reader | always | FinOps |
+| Security Reader | always | Defender for Cloud findings |
+| Monitoring Reader | always | Metrics and diagnostic settings read |
+| Monitoring Contributor | `enableProvisioningAccess` | Write subscription diagnostic settings |
+| EventGrid Contributor | `enableProvisioningAccess` | Create system topic + event subscription |
+| Storage Account Contributor | `enableProvisioningAccess` | Create/manage the event storage account |
+| User Access Administrator | `enableManagedIdentityRoleDelegation` | Restricted by `delegatedRoleDefinitionIds` to assigning Storage Blob Data Reader and Reader to **managed identities in your subscription only** |
+| Managed Services Registration assignment Delete | `enableSelfServiceOffboarding` | Lets Firefly remove its own delegation |
+
+**Prerequisites**
+
+- Deploying account needs **Owner** on the target subscription (`Microsoft.Authorization/roleAssignments` read/write/delete).
+- `Microsoft.ManagedServices` resource provider — registered automatically by the deployment.
+- One deployment per subscription. Management groups cannot be delegated directly; use [Azure Policy to onboard each subscription in a management group](https://learn.microsoft.com/en-us/azure/lighthouse/how-to/onboard-management-group).
+- `managedByTenantId` must differ from the tenant of the subscription being onboarded.
+
+**Known limitations of this path**
+
+Azure Lighthouse authorizations accept **built-in roles only** — no custom roles, and no role carrying `DataActions`. Consequences versus Option 1:
+
+- The custom `Firefly-CustomRole` list-keys permissions (Cosmos DB, AKS, Redis, App Configuration, Search, Service Bus, Log Analytics shared keys) are **not** available. Where equivalent coverage is required, Storage Account Contributor covers storage keys only.
+- Storage Blob Data Reader cannot be delegated to Firefly directly. Blob reads must run from an in-subscription managed identity — enable `enableManagedIdentityRoleDelegation` and deploy the in-tenant collector.
+- App Configuration Data Reader (`DataActions`) is not available.
+- Microsoft Entra directory objects are out of scope entirely — Lighthouse is Azure RBAC, not Microsoft Graph.
+
+**Security notes for your review**
+
+- Conditional Access policies in *your* tenant do not apply to delegated principals; identity controls (MFA, PIM) are enforced in Firefly's tenant. Your Azure Policy assignments and Azure RBAC still apply to every delegated operation, and all activity appears in your subscription's activity log.
+- Storage Account Contributor includes `listKeys`. Clear `enableProvisioningAccess` if that is not acceptable.
+- Review and revoke at any time: **Azure portal → Service providers → Service provider offers**.
+
+**Offboarding**
+
+```bash
+az managedservices assignment list --query "[].{Name:name, Offer:properties.registrationDefinitionId}" -o table
+az managedservices assignment delete --assignment <assignment-name>
+az managedservices definition delete --definition <definition-name>
+```
+
+---
+
 ### **Offboarding (Azure CLI)**
 
 To remove Firefly resources from your Azure subscription, run these commands:

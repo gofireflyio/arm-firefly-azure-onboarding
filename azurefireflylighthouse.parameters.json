@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "mspOfferName": {
+      "value": "Firefly Cloud Asset Management"
+    },
+    "mspOfferDescription": {
+      "value": "Firefly cloud asset management, IaC drift detection, and FinOps. Read-only inventory access plus optional provisioning of the event-driven monitoring pipeline."
+    },
+    "managedByTenantId": {
+      "value": "REPLACE_WITH_FIREFLY_TENANT_ID"
+    },
+    "fireflyPrincipalId": {
+      "value": "REPLACE_WITH_FIREFLY_PRINCIPAL_OBJECT_ID"
+    },
+    "fireflyPrincipalDisplayName": {
+      "value": "Firefly Integration"
+    },
+    "enableProvisioningAccess": {
+      "value": true
+    },
+    "enableManagedIdentityRoleDelegation": {
+      "value": false
+    },
+    "enableSelfServiceOffboarding": {
+      "value": true
+    }
+  }
+}

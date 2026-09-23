@@ -1,0 +1,112 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "basics": {
+        "resourceGroup": {
+          "allowExisting": true
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "intro",
+        "type": "Microsoft.Common.InfoBox",
+        "visible": true,
+        "options": {
+          "icon": "Info",
+          "text": "This deployment delegates read access on the selected subscription to Firefly through Azure Lighthouse. No app registration, service principal, or client secret is created in your tenant, and no credential leaves it. You can review the granted roles at any time under 'Service providers' in the Azure portal, and revoke the delegation from there. Deploying requires the Owner role on the subscription.",
+          "uri": "https://learn.microsoft.com/en-us/azure/lighthouse/concepts/architecture"
+        }
+      },
+      {
+        "name": "fireflyTenantId",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Firefly Tenant ID",
+        "defaultValue": "",
+        "toolTip": "Firefly's Microsoft Entra tenant ID. Pre-filled by Firefly.",
+        "constraints": {
+          "required": true,
+          "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "validationMessage": "Must be a valid GUID."
+        },
+        "visible": true
+      },
+      {
+        "name": "fireflyPrincipalId",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Firefly Principal Object ID",
+        "defaultValue": "",
+        "toolTip": "Object ID of the Firefly security group that receives the delegated roles. Pre-filled by Firefly.",
+        "constraints": {
+          "required": true,
+          "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "validationMessage": "Must be a valid GUID."
+        },
+        "visible": true
+      }
+    ],
+    "steps": [
+      {
+        "name": "delegationScope",
+        "label": "Delegation Scope",
+        "elements": [
+          {
+            "name": "offerName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Offer Name",
+            "defaultValue": "Firefly Cloud Asset Management",
+            "toolTip": "Shown on the 'Service providers' page in your portal. Must be unique per subscription.",
+            "constraints": {
+              "required": true,
+              "regex": "^[A-Za-z0-9 ._-]{3,120}$",
+              "validationMessage": "3-120 characters: letters, digits, spaces, dots, underscores, hyphens."
+            }
+          },
+          {
+            "name": "enableProvisioningAccess",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Allow Firefly to provision event-driven monitoring",
+            "defaultValue": true,
+            "toolTip": "Adds Monitoring Contributor, EventGrid Contributor, and Storage Account Contributor so Firefly can create and maintain the diagnostic settings, Event Grid system topic, and event storage account. Clear this for an inventory-only, strictly read-only delegation."
+          },
+          {
+            "name": "enableManagedIdentityRoleDelegation",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Allow Firefly to grant blob read access to in-subscription managed identities",
+            "defaultValue": false,
+            "toolTip": "Grants User Access Administrator restricted to assigning Storage Blob Data Reader and Reader to managed identities inside this subscription, and nothing else. Needed only for the in-tenant collector, which reads log blobs with its own managed identity so Firefly never needs a network path into the storage account."
+          },
+          {
+            "name": "enableSelfServiceOffboarding",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Allow Firefly to remove its own delegation",
+            "defaultValue": true,
+            "toolTip": "Lets Firefly clean up the delegation at offboarding. You can always revoke it yourself from the 'Service providers' page regardless of this setting."
+          },
+          {
+            "name": "permissionsNote",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[steps('delegationScope').enableProvisioningAccess]",
+            "options": {
+              "icon": "Warning",
+              "text": "Storage Account Contributor includes the ability to list storage account keys. If your policy prohibits that, clear the provisioning checkbox and have Firefly deploy the monitoring pipeline through a separate scoped delegation."
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "mspOfferName": "[steps('delegationScope').offerName]",
+      "mspOfferDescription": "[concat(steps('delegationScope').offerName, ' - cloud asset management, IaC drift detection, and FinOps.')]",
+      "managedByTenantId": "[basics('fireflyTenantId')]",
+      "fireflyPrincipalId": "[basics('fireflyPrincipalId')]",
+      "fireflyPrincipalDisplayName": "Firefly Integration",
+      "enableProvisioningAccess": "[steps('delegationScope').enableProvisioningAccess]",
+      "enableManagedIdentityRoleDelegation": "[steps('delegationScope').enableManagedIdentityRoleDelegation]",
+      "enableSelfServiceOffboarding": "[steps('delegationScope').enableSelfServiceOffboarding]"
+    }
+  }
+}
