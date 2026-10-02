@@ -154,6 +154,8 @@ Firefly is a comprehensive cloud asset management platform that helps organizati
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2Fazurefireflydeploy-managementgroups.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fgofireflyio%2Farm-firefly-azure-onboarding%2Frefs%2Fheads%2Fmain%2FCreateUIDefinition-managementgroups.json)
 
+With event-driven monitoring enabled, the template creates a user-assigned managed identity, `firefly-mg-diagnostics-<management-group-id>`, in the hub resource group. It has Monitoring Contributor on the management group and Storage Account Key Operator on the Firefly storage account, and it writes each subscription's diagnostic setting. The Firefly service principal stays read-only. To offboard, delete the identity's role assignment on the management group as well as the resource group.
+
 ### **Offboarding (Azure CLI)**
 
 To remove Firefly resources from your Azure subscription, run these commands:
