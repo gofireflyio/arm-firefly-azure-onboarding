@@ -360,6 +360,17 @@ az role assignment list --scope "/subscriptions/<subscription-id>"
 az role definition list --name "Owner"
 ```
 
+**`RoleAssignmentExists` when re-running the management group deployment:** the template names its role assignments after the management group, subscription and service principal, so re-runs update them in place. Deployments made with earlier template versions used random names, and so do role assignments created by hand. Delete the Firefly service principal's role assignments on the management group, the deployment subscription and the Firefly storage account, then re-run. To list them: `az role assignment list --assignee "<client-id>" --all -o table`.
+
+**`Only one system topic is allowed per source` when re-running the management group deployment:** the Event Grid system topic is now named after the deployment subscription. Deployments made with earlier template versions created it under a random name. Delete the old `firefly-mg-*` system topic in the `firefly-monitoring-mg-<mg-id>` resource group, then re-run: `az eventgrid system-topic delete --resource-group "firefly-monitoring-mg-<mg-id>" --name "<topic-name>"`.
+
+#### **Management Group Deployment Logs**
+The registration and diagnostics scripts keep their logs for 1 day (the Azure maximum is 26 hours). Use the script with `integration` in its name to see which subscriptions were registered.
+```bash
+az deployment-scripts list --resource-group "firefly-monitoring-mg-<mg-id>" -o table
+az deployment-scripts show-log --resource-group "firefly-monitoring-mg-<mg-id>" --name "<script-name>"
+```
+
 #### **Integration Creation Failed**
 - ✅ Verify Firefly credentials are correct
 - ✅ Check network connectivity to `https://prodapi.firefly.ai`
