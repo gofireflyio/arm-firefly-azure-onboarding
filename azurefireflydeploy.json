@@ -261,8 +261,7 @@
                   "Microsoft.Search/searchServices/listAdminKeys/action",
                   "Microsoft.Authorization/roleAssignments/read",
                   "Microsoft.OperationalInsights/workspaces/sharedkeys/action",
-                  "Microsoft.ServiceBus/namespaces/authorizationRules/listKeys/action",
-                  "Microsoft.ServiceBus/namespaces/authorizationRules/regenerateKeys/action"
+                  "Microsoft.ServiceBus/namespaces/authorizationRules/listKeys/action"
                 ],
                             "notActions": [],
                             "dataActions": [],
