@@ -94,12 +94,12 @@
     "enableDeploymentTelemetry": {
       "type": "bool",
       "defaultValue": true,
-      "metadata": { "description": "Report deployment script failures to Firefly (sentry.firefly.ai). Set to false if outbound traffic there is not allowed." }
+      "metadata": { "description": "Report deployment script failures to Firefly. Set to false to turn reporting off." }
     },
     "telemetryDsn": {
       "type": "string",
       "defaultValue": "https://12adf8e1ee07e75218287e7482050bb6@sentry.firefly.ai/38",
-      "metadata": { "description": "Sentry DSN that deployment script failures are reported to" }
+      "metadata": { "description": "Endpoint that deployment script failures are reported to" }
     },
     "newguid": {
       "type": "string",

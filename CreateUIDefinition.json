@@ -77,7 +77,7 @@
             "name": "disableDeploymentTelemetry",
             "type": "Microsoft.Common.CheckBox",
             "label": "Disable deployment telemetry",
-            "toolTip": "By default, if a deployment script fails, the error is reported to Firefly (sentry.firefly.ai) so we can help. Only allowlisted fields are sent and credentials are scrubbed. Check this if outbound traffic to sentry.firefly.ai is not allowed.",
+            "toolTip": "By default, if a deployment script fails, the error is reported to Firefly so we can help. Only allowlisted fields are sent and credentials are scrubbed. Check this to turn reporting off.",
             "constraints": {
               "required": false
             },
