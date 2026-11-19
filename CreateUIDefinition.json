@@ -74,6 +74,16 @@
             "visible": true
           },
           {
+            "name": "disableDeploymentTelemetry",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Disable deployment telemetry",
+            "toolTip": "By default, if a deployment script fails, the error is reported to Firefly so we can help. Only allowlisted fields are sent and credentials are scrubbed. Check this to turn reporting off.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          },
+          {
             "name": "tags",
             "type": "Microsoft.Common.EditableGrid",
             "ariaLabel": "Custom tags for resources",
@@ -244,6 +254,7 @@
       "isProd": "[steps('integrationConfig').isProd]",
       "targetSubscriptions": "[steps('integrationConfig').targetSubscriptions]",
       "enforceStorageNetworkRules": "[steps('integrationConfig').enforceStorageNetworkRules]",
+      "enableDeploymentTelemetry": "[not(steps('integrationConfig').disableDeploymentTelemetry)]",
       "tags": "[steps('integrationConfig').tags]"
     }
   }

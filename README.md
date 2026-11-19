@@ -214,6 +214,15 @@ The deployment wizard will guide you through creating a service principal:
 - **Custom Tags**: Add organizational tags to all resources
 - **Target Subscriptions**: Select additional subscriptions to monitor
 - **Directory Domain**: Your organization's domain (defaults to firefly.ai)
+- **Disable deployment telemetry**: See [Deployment telemetry](#deployment-telemetry)
+
+#### **Deployment telemetry**
+If a deployment script fails (Firefly IP lookup, Firefly or Azure authentication, management group discovery, diagnostic settings, or integration registration), it reports the error to Firefly at `sentry.firefly.ai` so we can see and fix onboarding problems without waiting for a support ticket.
+
+- **What is sent**: the template and script name, the failing step, the error message, the HTTP status and response body where relevant, and the subscription, tenant and management group IDs. Nothing else from the environment is sent.
+- **Credentials**: the service principal secret, the Firefly keys and any access token are removed from every message before it is sent. TLS certificate verification is on.
+- **Never blocks onboarding**: each report times out after 5 seconds and its failures are ignored, so a blocked or unavailable endpoint cannot fail or slow a deployment.
+- **Turning it off**: check **Disable deployment telemetry** in the portal, or set `enableDeploymentTelemetry=false` when deploying with the Azure CLI. `telemetryDsn` sets the endpoint.
 
 ### **Step 3: Review & Deploy**
 
